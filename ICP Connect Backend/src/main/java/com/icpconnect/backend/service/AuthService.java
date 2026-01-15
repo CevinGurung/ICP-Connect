@@ -50,7 +50,7 @@ public class AuthService {
 
         User user = new User();
         user.setUserName(request.userName());
-        user.setEmail(request.email().toLowerCase());
+        user.setEmail(request.email());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setPhoneNumber(request.phoneNumber());
         user.setRole(Role.STUDENT);
@@ -70,7 +70,7 @@ public class AuthService {
     /* ===================== LOGIN ===================== */
 
     public AuthResponse login(AuthRequest request) {
-        User user = userRepository.findByEmail(request.email().toLowerCase())
+        User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
 
         if (!user.isActiveStatus()) {
@@ -155,7 +155,7 @@ public class AuthService {
         rt.setUser(user);
         rt.setTokenHash(tokenHash);
         rt.setRevoked(false);
-        rt.setExpiresAt(LocalDateTime.now().plusNanos(refreshExpMs * 1_000_000L));
+        rt.setExpiresAt(LocalDateTime.now().plusSeconds(refreshExpMs / 1000));
 
         refreshTokenRepository.save(rt);
     }
