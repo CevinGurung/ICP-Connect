@@ -17,9 +17,9 @@
   position: sticky;
   top: 0;
   z-index: 50;
-  backdrop-filter: blur(10px);
-  background: rgba(10, 14, 24, 0.55);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(12px);
+  background: rgba(13, 17, 23, 0.75);
+  border-bottom: 1px solid var(--card-border);
 }
 
 .nav-inner {
@@ -41,11 +41,11 @@
 }
 
 .brand-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
-  background: linear-gradient(90deg, var(--primary), var(--primary2));
-  box-shadow: 0 0 0 6px rgba(124, 92, 255, 0.12);
+  background: var(--primary);
+  box-shadow: 0 0 12px var(--primary);
 }
 
 .nav-links {
@@ -124,25 +124,37 @@
 .field input {
   height: 44px;
   padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.25);
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: var(--bg);
   color: var(--text);
   outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .field input:focus {
-  border-color: rgba(124, 92, 255, 0.55);
-  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.18);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
 }
 
 .alert {
   margin: 12px 0 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 77, 109, 0.35);
-  background: rgba(255, 77, 109, 0.10);
-  color: rgba(255,255,255,0.92);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  border: 1px solid var(--card-border);
+}
+
+.alert-error {
+  border-color: rgba(248, 81, 73, 0.4);
+  background: rgba(248, 81, 73, 0.1);
+  color: var(--error);
+}
+
+.alert-success {
+  border-color: rgba(63, 185, 80, 0.4);
+  background: rgba(63, 185, 80, 0.1);
+  color: var(--success);
 }
 
 /* Buttons */
@@ -159,13 +171,14 @@
 }
 
 .btn-primary {
-  color: #0b0f17;
-  background: linear-gradient(90deg, var(--primary), var(--primary2));
-  font-weight: 650;
+  color: #ffffff;
+  background: var(--primary);
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.1);
 }
 
 .btn-primary:hover {
-  filter: brightness(1.03);
+  filter: brightness(1.1);
 }
 
 .btn-ghost {
@@ -173,6 +186,27 @@
   background: rgba(255,255,255,0.06);
   border-color: rgba(255,255,255,0.10);
   padding: 0 12px;
+}
+
+.btn-secondary {
+  color: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 /* Home empty */

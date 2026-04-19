@@ -22,6 +22,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final TokenHashUtil tokenHashUtil;
+    private final OtpService otpService;
 
     private final long refreshExpMs;
 
@@ -31,6 +32,7 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtUtil jwtUtil,
             TokenHashUtil tokenHashUtil,
+            OtpService otpService,
             @Value("${app.jwt.refresh-exp-ms}") long refreshExpMs
     ) {
         this.userRepository = userRepository;
@@ -38,12 +40,16 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.tokenHashUtil = tokenHashUtil;
+        this.otpService = otpService;
         this.refreshExpMs = refreshExpMs;
     }
 
     /* ===================== REGISTER ===================== */
 
     public AuthResponse register(RegisterRequest request) {
+        // Validate OTP using Cache
+        otpService.validateOtp(request.email(), request.otp());
+
         if (userRepository.existsByEmail(request.email())) {
             throw new IllegalArgumentException("Email already registered");
         }
@@ -64,14 +70,14 @@ public class AuthService {
 
         storeRefreshToken(saved, refreshToken);
 
-        return new AuthResponse(accessToken, refreshToken);
+        return new AuthResponse(accessToken, refreshToken, false);
     }
 
     /* ===================== LOGIN ===================== */
 
     public AuthResponse login(AuthRequest request) {
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid credentials"));
+                .orElseThrow(() -> new IllegalArgumentException("No account found with this email."));
 
         if (!user.isActiveStatus()) {
             throw new IllegalArgumentException("Account is inactive");
@@ -81,16 +87,21 @@ public class AuthService {
             throw new IllegalArgumentException("Invalid credentials");
         }
 
+        // If OTP is not provided, trigger MFA step
+        if (request.otp() == null || request.otp().isBlank()) {
+            otpService.generateAndSendOtp(user.getEmail(), "Login");
+            return new AuthResponse(null, null, true);
+        }
+
+        // If OTP is provided, validate it
+        otpService.validateOtp(user.getEmail(), request.otp());
+
         String accessToken = jwtUtil.generateAccessToken(user);
         String refreshToken = jwtUtil.generateRefreshToken(user);
 
-        // Optional: revoke previous refresh tokens for single-session policy
-        // If you want multi-device support, do NOT revoke all here.
-        // revokeAllUserRefreshTokens(user);
-
         storeRefreshToken(user, refreshToken);
 
-        return new AuthResponse(accessToken, refreshToken);
+        return new AuthResponse(accessToken, refreshToken, false);
     }
 
     /* ===================== REFRESH ===================== */
@@ -131,7 +142,7 @@ public class AuthService {
 
         storeRefreshToken(user, newRefresh);
 
-        return new AuthResponse(newAccess, newRefresh);
+        return new AuthResponse(newAccess, newRefresh, false);
     }
 
     /* ===================== LOGOUT ===================== */

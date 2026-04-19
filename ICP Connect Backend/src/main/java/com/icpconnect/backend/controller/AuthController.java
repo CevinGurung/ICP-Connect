@@ -4,19 +4,31 @@ import com.icpconnect.backend.dto.AuthRequest;
 import com.icpconnect.backend.dto.AuthResponse;
 import com.icpconnect.backend.dto.RefreshRequest;
 import com.icpconnect.backend.dto.RegisterRequest;
+import com.icpconnect.backend.dto.OtpSendRequest;
 import com.icpconnect.backend.service.AuthService;
+import com.icpconnect.backend.service.OtpService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
 
     private final AuthService authService;
+    private final OtpService otpService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, OtpService otpService) {
         this.authService = authService;
+        this.otpService = otpService;
+    }
+
+    @PostMapping("/send-otp")
+    public ResponseEntity<?> sendOtp(@Valid @RequestBody OtpSendRequest request) {
+        otpService.generateAndSendOtp(request.email(), "Registration");
+        return ResponseEntity.ok(Map.of("message", "OTP sent successfully to " + request.email()));
     }
 
     @PostMapping("/register")
@@ -43,3 +55,5 @@ public class AuthController {
         return ResponseEntity.noContent().build(); // 204
     }
 }
+
+
