@@ -43,15 +43,18 @@
 }
 
 .navbar-logo {
-  height: 32px;
+  height: 42px;
   width: auto;
   object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(88, 166, 255, 0.2));
 }
 
 .brand-text {
-  background: linear-gradient(135deg, var(--text) 0%, var(--text-secondary) 100%);
+  background: linear-gradient(135deg, #fff 0%, #8b949e 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+  font-size: 1.5rem;
 }
 
 .brand-dot {

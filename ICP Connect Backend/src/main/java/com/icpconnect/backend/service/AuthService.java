@@ -132,7 +132,7 @@ public class AuthService {
         }
 
         User user = stored.getUser();
-        if (!user.isActiveStatus()) {
+        if (!user.isActive()) {
             throw new IllegalArgumentException("Account is inactive");
         }
 

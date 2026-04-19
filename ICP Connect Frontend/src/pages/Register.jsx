@@ -44,14 +44,20 @@ export default function Register() {
     setErr("");
     setSuccess("");
     
-    if (!validateEmail(form.email)) {
+    const emailToUse = form.email.trim();
+    if (!validateEmail(emailToUse)) {
       setErr("Email must be an @icp.edu.np domain");
+      return;
+    }
+
+    if (form.password.length < 8) {
+      setErr("Password must be at least 8 characters long");
       return;
     }
 
     setLoading(true);
     try {
-      await sendOtp(form.email);
+      await sendOtp(emailToUse);
       setSuccess("OTP sent to your email!");
       setStep(2);
       setResendTimer(30);
@@ -67,10 +73,12 @@ export default function Register() {
     e.preventDefault();
     setErr("");
     setLoading(true);
+    const cleanedForm = { ...form, email: form.email.trim() };
     try {
-      await registerApi(form);
-      setSuccess("Account created successfully! Redirecting to login...");
-      setTimeout(() => navigate("/login"), 2000);
+      const data = await registerApi(cleanedForm);
+      setTokens(data.accessToken, data.refreshToken);
+      setSuccess("Account created successfully! Logging you in...");
+      setTimeout(() => navigate("/"), 2000);
     } catch (error) {
       const msg =
         error?.response?.data?.message ||
@@ -167,6 +175,7 @@ export default function Register() {
                       value={form.password}
                       onChange={onChange}
                       placeholder="••••••••"
+                      minLength={8}
                       required
                     />
                     <button 

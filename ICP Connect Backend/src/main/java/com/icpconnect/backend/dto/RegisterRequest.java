@@ -9,7 +9,7 @@ public record RegisterRequest(
         @NotBlank @Size(min = 2, max = 100) String fullName,
         @NotBlank @Size(min = 4, max = 50) String userName,
         @Email @NotBlank @Pattern(regexp = ".*@icp\\.edu\\.np$", message = "Email must be an @icp.edu.np domain") String email,
-        @NotBlank @Size(min = 6, max = 100) String password,
+        @NotBlank @Size(min = 8, max = 100) String password,
         @NotBlank String program,
         @NotBlank String year,
         String section,

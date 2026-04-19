@@ -61,7 +61,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         Optional<User> userOpt = userRepository.findByEmail(email);
-        if (userOpt.isEmpty() || !userOpt.get().isActiveStatus()) {
+        if (userOpt.isEmpty() || !userOpt.get().isActive()) {
             filterChain.doFilter(request, response);
             return;
         }
