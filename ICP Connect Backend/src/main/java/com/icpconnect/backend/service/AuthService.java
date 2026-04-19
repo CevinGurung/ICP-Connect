@@ -55,12 +55,15 @@ public class AuthService {
         }
 
         User user = new User();
+        user.setFullName(request.fullName());
         user.setUserName(request.userName());
         user.setEmail(request.email());
         user.setPasswordHash(passwordEncoder.encode(request.password()));
-        user.setPhoneNumber(request.phoneNumber());
+        user.setProgram(request.program());
+        user.setYear(request.year());
+        user.setSection(request.section());
         user.setRole(Role.STUDENT);
-        user.setActiveStatus(true);
+        user.setActive(true);
 
         User saved = userRepository.save(user);
 
@@ -79,7 +82,7 @@ public class AuthService {
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new IllegalArgumentException("No account found with this email."));
 
-        if (!user.isActiveStatus()) {
+        if (!user.isActive()) {
             throw new IllegalArgumentException("Account is inactive");
         }
 

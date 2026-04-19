@@ -6,14 +6,18 @@ import { setTokens } from "../auth/auth.js";
 export default function Register() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
+    fullName: "",
     userName: "",
     email: "",
-    phoneNumber: "",
     password: "",
+    program: "BIT",
+    year: "1",
+    section: "",
     otp: "",
   });
 
   const [step, setStep] = useState(1); // 1: Info, 2: OTP
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState("");
@@ -64,9 +68,9 @@ export default function Register() {
     setErr("");
     setLoading(true);
     try {
-      const data = await registerApi(form);
-      setTokens(data.accessToken, data.refreshToken);
-      navigate("/", { replace: true });
+      await registerApi(form);
+      setSuccess("Account created successfully! Redirecting to login...");
+      setTimeout(() => navigate("/login"), 2000);
     } catch (error) {
       const msg =
         error?.response?.data?.message ||
@@ -90,19 +94,31 @@ export default function Register() {
 
           {step === 1 ? (
             <form className="form" onSubmit={handleRequestOtp}>
-              <label className="field">
-                <span>Username</span>
-                <input
-                  name="userName"
-                  value={form.userName}
-                  onChange={onChange}
-                  placeholder="Cevin Gurung"
-                  required
-                />
-              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
+                <label className="field">
+                  <span>Full Name</span>
+                  <input
+                    name="fullName"
+                    value={form.fullName}
+                    onChange={onChange}
+                    placeholder="e.g. Cevin Gurung"
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span>Username</span>
+                  <input
+                    name="userName"
+                    value={form.userName}
+                    onChange={onChange}
+                    placeholder="cecil"
+                    required
+                  />
+                </label>
+              </div>
 
               <label className="field">
-                <span>Email</span>
+                <span>College Email</span>
                 <input
                   name="email"
                   type="email"
@@ -113,31 +129,64 @@ export default function Register() {
                 />
               </label>
 
-              <label className="field">
-                <span>Phone Number</span>
-                <input
-                  name="phoneNumber"
-                  value={form.phoneNumber}
-                  onChange={onChange}
-                  placeholder="98xxxxxxxx"
-                  required
-                />
-              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
+                <label className="field">
+                  <span>Program</span>
+                  <select name="program" value={form.program} onChange={onChange} className="field-select">
+                    <option value="BIT">BIT</option>
+                    <option value="BBA">BBA</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Year</span>
+                  <select name="year" value={form.year} onChange={onChange} className="field-select">
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                  </select>
+                </label>
+              </div>
 
-              <label className="field">
-                <span>Password</span>
-                <input
-                  name="password"
-                  type="password"
-                  value={form.password}
-                  onChange={onChange}
-                  placeholder="Min 6+ characters"
-                  required
-                />
-              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
+                <label className="field">
+                  <span>Section</span>
+                  <input
+                    name="section"
+                    value={form.section}
+                    onChange={onChange}
+                    placeholder="e.g. C1, C2, C3"
+                    required
+                  />
+                </label>
+                <label className="field">
+                  <span>Password</span>
+                  <div className="password-wrap">
+                    <input
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      value={form.password}
+                      onChange={onChange}
+                      placeholder="••••••••"
+                      required
+                    />
+                    <button 
+                      type="button" 
+                      className="toggle-pass" 
+                      onClick={() => setShowPassword(!showPassword)}
+                      title={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                      ) : (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                      )}
+                    </button>
+                  </div>
+                </label>
+              </div>
 
-              <button className="btn btn-primary" disabled={loading} type="submit" style={{ marginTop: '8px' }}>
-                {loading ? "Sending OTP..." : "Get OTP"}
+              <button className="btn btn-primary" disabled={loading} type="submit" style={{ marginTop: '12px' }}>
+                {loading ? "Sending OTP..." : "Get Verification Code"}
               </button>
             </form>
           ) : (
@@ -150,7 +199,7 @@ export default function Register() {
                   onClick={() => setStep(1)}
                   style={{ fontSize: '0.8rem', color: 'var(--primary)', marginTop: '4px' }}
                 >
-                  Change Email?
+                  Edit details?
                 </button>
               </div>
 
@@ -169,7 +218,7 @@ export default function Register() {
               </label>
 
               <button className="btn btn-primary" disabled={loading} type="submit" style={{ marginTop: '8px' }}>
-                {loading ? "Verifying..." : "Register"}
+                {loading ? "Creating account..." : "Complete Registration"}
               </button>
 
               <div style={{ textAlign: 'center', marginTop: '16px' }}>

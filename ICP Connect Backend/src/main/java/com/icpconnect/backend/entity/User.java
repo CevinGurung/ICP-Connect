@@ -17,6 +17,9 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, length = 100)
+    private String fullName;
+
     @Column(nullable = false, length = 50)
     private String userName;
 
@@ -26,8 +29,20 @@ public class User {
     @Column(nullable = false, length = 100)
     private String passwordHash;
 
-    @Column(length = 20)
-    private String phoneNumber;
+    @Column(length = 50)
+    private String program;
+
+    @Column(length = 10)
+    private String year;
+
+    @Column(length = 50)
+    private String section;
+
+    @Column(length = 500)
+    private String profileImageUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String bio;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -37,19 +52,19 @@ public class User {
     private LocalDateTime createdAt;
 
     @Column(nullable = false)
-    private boolean activeStatus = true;
+    private boolean isActive = true;
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     }
 
-    public User(String userName, String email, String passwordHash,
-                String phoneNumber, Role role) {
+    public User(String fullName, String userName, String email, String passwordHash,
+                Role role) {
+        this.fullName = fullName;
         this.userName = userName;
         this.email = email;
         this.passwordHash = passwordHash;
-        this.phoneNumber = phoneNumber;
         this.role = role;
     }
 }
