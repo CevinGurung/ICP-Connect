@@ -1,5 +1,10 @@
 import api from "./api.js";
 
+export async function sendOtp(email) {
+  const res = await api.post("/auth/send-otp", { email });
+  return res.data;
+}
+
 export async function register(payload) {
   // payload: { userName, email, password, phoneNumber }
   const res = await api.post("/auth/register", payload);
