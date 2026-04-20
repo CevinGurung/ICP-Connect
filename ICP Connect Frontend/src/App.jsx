@@ -5,6 +5,8 @@ import Home from "./pages/Home.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Profile from "./pages/Profile.jsx";
+import PaymentSuccess from "./pages/PaymentSuccess.jsx";
+import PaymentFailure from "./pages/PaymentFailure.jsx";
 import { ToastContainer } from "./components/Toast.jsx";
 import { isLoggedIn } from "./auth/auth.js";
 import "./App.css";
@@ -27,8 +29,14 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
 
   const showToast = useCallback((type, message) => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, type, message }]);
+    setToasts((prev) => {
+      // Prevent multiple popoffs of same message/type if already visible
+      const isDuplicate = prev.some(t => t.type === type && t.message === message);
+      if (isDuplicate) return prev;
+      
+      const id = Date.now();
+      return [...prev, { id, type, message }];
+    });
   }, []);
 
   const removeToast = useCallback((id) => {
@@ -107,6 +115,23 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <Connections />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/payment-success"
+                element={
+                  <ProtectedRoute>
+                    <PaymentSuccess />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payment-failure"
+                element={
+                  <ProtectedRoute>
+                    <PaymentFailure />
                   </ProtectedRoute>
                 }
               />

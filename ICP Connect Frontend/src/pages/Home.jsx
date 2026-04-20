@@ -20,9 +20,11 @@ import {
   PieChart,
   Target,
   Award,
-  Users
+  Users,
+  Heart
 } from "lucide-react";
 import { useNotification } from "../App.jsx";
+import DonationModal from "../components/DonationModal.jsx";
 import postService from "../services/postService.js";
 import { getUserInfo } from "../auth/auth.js";
 import { 
@@ -105,6 +107,7 @@ export default function Home() {
   // Recommendations state
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
+  const [isDonationModalOpen, setIsDonationModalOpen] = useState(false);
 
   // Social Modal State
   const [showListModal, setShowListModal] = useState(false);
@@ -1021,7 +1024,6 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Right Column: People You May Know */}
       {/* Right Column: Recommendations */}
       <aside className="right-col">
         <div className="card connections-card">
@@ -1109,9 +1111,38 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        <div className="card support-dev-card glass" style={{ marginTop: '16px', padding: '20px', textAlign: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+            <Heart size={32} fill="var(--primary)" color="var(--primary)" />
+          </div>
+          <h4 style={{ margin: '0 0 8px', fontSize: '0.95rem', fontWeight: '700' }}>Support the Developer</h4>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+            Help us maintain and improve ICP Connect for the community.
+          </p>
+          <button 
+            className="btn btn-primary" 
+            style={{ width: '100%', borderRadius: '20px' }}
+            onClick={() => setIsDonationModalOpen(true)}
+          >
+            Donate with eSewa
+          </button>
+        </div>
       </aside>
 
+      <DonationModal 
+        isOpen={isDonationModalOpen} 
+        onClose={() => setIsDonationModalOpen(false)} 
+      />
+
       <style>{`
+        .support-dev-card { border: 1px solid var(--border); transition: all 0.2s; }
+        .support-dev-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: 0 8px 25px rgba(88, 166, 255, 0.2); }
+          border-radius: 30px;
+          background: rgba(88, 166, 255, 0.15);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(88, 166, 255, 0.3);
+
         .developer-sidebar { padding: 0; position: sticky; top: 88px; background: #161B22; border: 1px solid #30363D; display: flex; flex-direction: column; overflow: hidden; min-height: 600px; }
         .profile-info-advanced { padding: 24px 16px; display: flex; flex-direction: column; align-items: center; border-bottom: 1px solid #30363D; background: linear-gradient(to bottom, #1c2128, #161b22); }
         .sidebar-avatar-container { margin-bottom: 16px; position: relative; }
