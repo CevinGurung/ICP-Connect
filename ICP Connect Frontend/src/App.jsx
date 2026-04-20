@@ -51,6 +51,14 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/post/:postId"
+                element={
+                  <ProtectedRoute>
+                    <Home />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route
                 path="/login"

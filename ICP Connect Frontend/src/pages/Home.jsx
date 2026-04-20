@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { 
   ImageIcon, 
   Video, 
@@ -17,9 +18,12 @@ import {
 } from "lucide-react";
 import { useNotification } from "../App.jsx";
 import postService from "../services/postService.js";
+import { getUserInfo } from "../auth/auth.js";
 
 export default function Home() {
   const { showToast } = useNotification();
+  const { postId } = useParams();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loadingFeed, setLoadingFeed] = useState(true);
   const [isCreatingPost, setIsCreatingPost] = useState(false);
@@ -27,6 +31,7 @@ export default function Home() {
   const [content, setContent] = useState("");
   const [selectedMedia, setSelectedMedia] = useState([]); // Array of { url, type, file }
   const [mediaType, setMediaType] = useState(null); // 'image' or 'video'
+  const [currentUser, setCurrentUser] = useState(null);
   
   // New States for Management & UI
   const [activeDropdownId, setActiveDropdownId] = useState(null);
@@ -54,8 +59,39 @@ export default function Home() {
   ];
 
   useEffect(() => {
-    fetchFeed();
+    const init = async () => {
+      const user = getUserInfo();
+      setCurrentUser(user);
+      await fetchFeed();
+    };
+    init();
   }, []);
+
+  useEffect(() => {
+    if (postId && posts.length > 0) {
+      handleDeepLink(postId);
+    }
+  }, [postId, posts]);
+
+  const handleDeepLink = async (id) => {
+    const existing = posts.find(p => p.id === parseInt(id));
+    if (existing) {
+      setSelectedPost(existing);
+      setIsDetailOpen(true);
+    } else {
+      try {
+        const post = await postService.getPostById(id);
+        setSelectedPost(post);
+        setIsDetailOpen(true);
+      } catch (err) {
+        // If it's a 401, the interceptor will handle the redirect
+        if (err.response?.status !== 401) {
+          showToast("error", "Post not found");
+          navigate("/");
+        }
+      }
+    }
+  };
 
   const fetchFeed = async () => {
     try {
@@ -63,7 +99,10 @@ export default function Home() {
       const data = await postService.getFeed();
       setPosts(data);
     } catch (error) {
-      showToast("error", "Failed to load feed");
+      // If it's a 401, the interceptor will handle the refresh/redirect
+      if (error.response?.status !== 401) {
+        showToast("error", "Failed to load feed");
+      }
     } finally {
       setLoadingFeed(false);
     }
@@ -229,6 +268,13 @@ export default function Home() {
   const openDetailView = (post) => {
     setSelectedPost(post);
     setIsDetailOpen(true);
+    navigate(`/post/${post.id}`);
+  };
+
+  const closeDetailView = () => {
+    setIsDetailOpen(false);
+    setSelectedPost(null);
+    navigate("/");
   };
 
   const handleShare = async (e, post) => {
@@ -309,10 +355,12 @@ export default function Home() {
           <div className="profile-banner"></div>
           <div className="profile-info">
             <div className="profile-avatar-container">
-              <div className="profile-avatar">CG</div>
+              <div className="profile-avatar">
+                {currentUser ? (currentUser.fullName ? currentUser.fullName[0] : currentUser.sub[0]) : "U"}
+              </div>
             </div>
-            <h3 className="profile-name">Cevin Gurung</h3>
-            <p className="profile-role">Software Developer at ICP</p>
+            <h3 className="profile-name">{currentUser ? currentUser.fullName : "User"}</h3>
+            <p className="profile-role">Community Member</p>
           </div>
           <div className="profile-stats">
             <div className="stat-item">
@@ -336,7 +384,9 @@ export default function Home() {
         <div className={`card create-post ${isCreatingPost ? 'expanded' : ''}`}>
           {!isCreatingPost ? (
             <div className="post-input-container">
-              <div className="avatar-small">CG</div>
+              <div className="avatar-small">
+                {currentUser ? (currentUser.fullName ? currentUser.fullName[0] : currentUser.sub[0]) : "U"}
+              </div>
               <button className="post-trigger-btn" onClick={() => setIsCreatingPost(true)}>
                 What's on your mind?
               </button>
@@ -425,7 +475,7 @@ export default function Home() {
             </div>
           ) : (
             posts.map((post) => {
-              const isOwner = post.user && (post.user.fullName === "Cevin Gurung");
+              const isOwner = currentUser && post.user && (post.user.email === currentUser.sub);
               
               return (
                 <div key={post.id} className="card post-card" onClick={() => openDetailView(post)}>
@@ -691,7 +741,7 @@ export default function Home() {
 
         .modal-overlay {
           position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);
+          background: rgba(0,0,0,0.92); backdrop-filter: blur(8px);
           display: flex; align-items: center; justify-content: center; z-index: 1000;
           padding: 20px;
         }
@@ -700,9 +750,32 @@ export default function Home() {
           border-radius: 12px; width: 100%; max-height: 90vh; overflow: hidden;
           display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
-        .confirm-modal { max-width: 450px; }
-        .edit-modal { max-width: 700px; }
-        .detail-modal { max-width: 800px; }
+        .confirm-modal { max-width: 450px; flex-direction: column; }
+        .edit-modal { max-width: 700px; flex-direction: column; }
+        .detail-modal { 
+          max-width: 1400px; width: 95vw; height: 85vh; 
+          flex-direction: row; border: none; background: #000;
+        }
+        
+        /* Detail View Split Layout */
+        .detail-media-side {
+          flex: 7; background: #000; display: flex; align-items: center; justify-content: center;
+          position: relative; overflow: hidden; height: 100%;
+        }
+        .detail-info-side {
+          flex: 3; background: var(--card); border-left: 1px solid var(--border);
+          display: flex; flex-direction: column; height: 100%; min-width: 350px;
+        }
+        
+        .detail-media-container { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .detail-media-container img, .detail-media-container video { 
+          max-width: 100%; max-height: 100%; object-fit: contain; 
+          box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        .info-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .info-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .info-footer { padding: 12px 20px; border-top: 1px solid var(--border); }
         
         .modal-header {
           display: flex; justify-content: space-between; align-items: center;
@@ -741,33 +814,65 @@ export default function Home() {
       `}</style>
       {/* Detail Modal */}
       {isDetailOpen && selectedPost && (
-        <div className="modal-overlay" onClick={() => setIsDetailOpen(false)}>
+        <div className="modal-overlay" onClick={closeDetailView}>
           <div className="modal-content detail-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="author-info-large">
-                <div className="avatar-large">{selectedPost.user ? selectedPost.user.fullName[0] : "U"}</div>
-                <div>
-                  <h4 className="name-large">{selectedPost.user ? selectedPost.user.fullName : "Unknown User"}</h4>
-                  <p className="time-large">{formatDate(selectedPost.createdAt)}</p>
+            {/* Left Side: Media */}
+            <div className="detail-media-side">
+              <div className="detail-media-container">
+                {selectedPost.media && selectedPost.media.length > 0 ? (
+                  selectedPost.media[0].mediaType === "VIDEO" ? (
+                    <video controls src={`${API_BASE}${selectedPost.media[0].mediaUrl}`} />
+                  ) : (
+                    <img src={`${API_BASE}${selectedPost.media[0].mediaUrl}`} alt="Post content" />
+                  )
+                ) : (
+                  <div className="empty-media-placeholder">No Media</div>
+                )}
+              </div>
+              <button className="modal-close-btn" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10 }} onClick={closeDetailView}>
+                <X size={28} />
+              </button>
+            </div>
+
+            {/* Right Side: Info & Comments */}
+            <div className="detail-info-side">
+              <div className="info-header" style={{ background: 'var(--card)' }}>
+                <div className="author-info-large">
+                  <div className="avatar-large">{selectedPost.user ? selectedPost.user.fullName[0] : "U"}</div>
+                  <div>
+                    <h4 className="name-large">{selectedPost.user ? selectedPost.user.fullName : "Unknown User"}</h4>
+                    <p className="time-large">{formatDate(selectedPost.createdAt)}</p>
+                  </div>
+                </div>
+                <button className="modal-close-btn" onClick={closeDetailView}>
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="info-body">
+                <div className="detail-text" style={{ fontSize: '16px', marginBottom: '20px' }}>{selectedPost.content}</div>
+                
+                <div className="detail-stats" style={{ padding: '12px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', display: 'flex', gap: '16px' }}>
+                  <span className="stat-pill"><ThumbsUp size={14} /> {selectedPost.likeCount} Likes</span>
+                  <span className="stat-pill"><MessageSquare size={14} /> {selectedPost.commentCount} Comments</span>
+                </div>
+
+                <div className="comments-section" style={{ marginTop: '20px' }}>
+                  <h5 style={{ margin: '0 0 16px', color: 'var(--text-secondary)' }}>Comments</h5>
+                  <div className="empty-comments" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                    <MessageSquare size={32} style={{ opacity: 0.2, marginBottom: '12px' }} />
+                    <p>No comments yet. Be the first to start the conversation!</p>
+                  </div>
                 </div>
               </div>
-              <button className="modal-close-btn" onClick={() => setIsDetailOpen(false)}><X size={24} /></button>
-            </div>
-            <div className="modal-body">
-              <p className="detail-text">{selectedPost.content}</p>
-              {selectedPost.media && selectedPost.media.length > 0 && (
-                <div className="detail-media-list">
-                  {selectedPost.media.map(m => (
-                    <div key={m.id} className="detail-media-item">
-                      {m.mediaType === 'IMAGE' ? (
-                        <img src={`${API_BASE}${m.mediaUrl}`} alt="full preview" />
-                      ) : (
-                        <video src={`${API_BASE}${m.mediaUrl}`} controls muted autoPlay loop />
-                      )}
-                    </div>
-                  ))}
+
+              <div className="info-footer">
+                <div className="post-actions" style={{ display: 'flex', gap: '8px' }}>
+                  <button className="footer-btn" style={{ flex: 1 }}><ThumbsUp size={18} /> Like</button>
+                  <button className="footer-btn" style={{ flex: 1 }}><MessageSquare size={18} /> Comment</button>
+                  <button className="footer-btn" style={{ flex: 1 }}><Share2 size={18} /> Share</button>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
