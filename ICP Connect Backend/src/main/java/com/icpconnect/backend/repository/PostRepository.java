@@ -30,4 +30,9 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Modifying
     @Query("UPDATE Post p SET p.commentCount = p.commentCount - 1 WHERE p.id = :id AND p.commentCount > 0")
     void decrementCommentCount(@Param("id") Long id);
+
+    @Query("SELECT p FROM Post p WHERE p.user.id = :userId AND p.isDeleted = false ORDER BY p.createdAt DESC")
+    List<Post> findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(@Param("userId") Long userId);
+
+    long countByUserIdAndIsDeletedFalse(Long userId);
 }

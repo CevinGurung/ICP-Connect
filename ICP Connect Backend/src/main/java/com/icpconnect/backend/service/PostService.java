@@ -151,6 +151,25 @@ public class PostService {
         postRepository.save(post);
     }
 
+    public List<Post> getPostsByUserId(Long targetUserId, Long currentUserId) {
+        List<Post> posts = postRepository.findByUserIdAndIsDeletedFalseOrderByCreatedAtDesc(targetUserId);
+        if (currentUserId != null) {
+            posts.forEach(p -> {
+                p.setLiked(postLikeRepository.existsByPostIdAndUserId(p.getId(), currentUserId));
+            });
+        }
+        return posts;
+    }
+
+    @Transactional
+    public void sharePost(Long postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        Integer currentShares = post.getShareCount();
+        post.setShareCount((currentShares == null ? 0 : currentShares) + 1);
+        postRepository.save(post);
+    }
+
     @Transactional
     public Post updatePost(Long postId, String newContent, MultipartFile[] files, List<Long> removedMediaIds, Long userId) {
         Post post = postRepository.findById(postId)

@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { clearTokens, getRefreshToken, isLoggedIn } from "../auth/auth.js";
 import { logout as logoutApi } from "../services/authService.js";
+import { getUserInfo } from "../auth/auth.js";
 import { 
   Home, 
   Users, 
@@ -30,12 +31,15 @@ export default function Navbar() {
     }
   };
 
+  const userInfo = getUserInfo();
+  const currentUserId = userInfo?.userId;
+
   const navItems = [
     { to: "/", icon: <Home size={24} />, label: "Home" },
-    { to: "/friends", icon: <Users size={24} />, label: "Friends" },
+    { to: "/connections", icon: <Users size={24} />, label: "Connections" },
     { to: "/messages", icon: <MessageSquare size={24} />, label: "Message" },
     { to: "/notifications", icon: <Bell size={24} />, label: "Notification" },
-    { to: "/profile", icon: <UserIcon size={24} />, label: "Profile" },
+    { to: currentUserId ? `/profile/${currentUserId}` : "/profile", icon: <UserIcon size={24} />, label: "Profile" },
   ];
 
   if (isAuthPage) return null;

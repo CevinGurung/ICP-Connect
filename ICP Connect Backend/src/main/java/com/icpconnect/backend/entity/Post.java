@@ -45,6 +45,9 @@ public class Post {
     @Column(nullable = false)
     private int commentCount = 0;
 
+    @Column(nullable = true)
+    private Integer shareCount = 0;
+
     @Column(nullable = false)
     private boolean isDeleted = false;
 

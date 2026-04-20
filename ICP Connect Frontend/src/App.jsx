@@ -1,12 +1,15 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { useState, createContext, useContext, useCallback, useMemo } from "react";
+import { lazy, Suspense, useState, createContext, useContext, useCallback, useMemo } from "react";
 import Navbar from "./components/Navbar.jsx";
 import Home from "./pages/Home.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
+import Profile from "./pages/Profile.jsx";
 import { ToastContainer } from "./components/Toast.jsx";
 import { isLoggedIn } from "./auth/auth.js";
 import "./App.css";
+
+const Connections = lazy(() => import("./pages/Connections.jsx"));
 
 const NotificationContext = createContext(null);
 
@@ -42,7 +45,12 @@ export default function App() {
           <ToastContainer toasts={toasts} removeToast={removeToast} />
 
           <main className="app-main">
-            <Routes>
+            <Suspense fallback={
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
+                <div className="spinner"></div>
+              </div>
+            }>
+              <Routes>
               <Route
                 path="/"
                 element={
@@ -56,6 +64,23 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <Home />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile/:userId"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
                   </ProtectedRoute>
                 }
               />
@@ -77,8 +102,18 @@ export default function App() {
                 }
               />
 
+              <Route
+                path="/connections"
+                element={
+                  <ProtectedRoute>
+                    <Connections />
+                  </ProtectedRoute>
+                }
+              />
+
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+          </Suspense>
           </main>
         </div>
       </Router>

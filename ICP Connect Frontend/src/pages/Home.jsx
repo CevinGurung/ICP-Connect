@@ -14,11 +14,26 @@ import {
   Trash2,
   Clock,
   MoreVertical,
-  Edit
+  Edit,
+  BarChart3,
+  TrendingUp,
+  PieChart,
+  Target,
+  Award,
+  Users
 } from "lucide-react";
 import { useNotification } from "../App.jsx";
 import postService from "../services/postService.js";
 import { getUserInfo } from "../auth/auth.js";
+import { 
+  getUserProfile, 
+  getFollowers, 
+  getFollowing,
+  getUserPosts,
+  toggleFollow,
+  getRecommendations
+} from "../services/userService.js";
+import PeopleListModal from "../components/PeopleListModal";
 
 export default function Home() {
   const { showToast } = useNotification();
@@ -76,11 +91,137 @@ export default function Home() {
     { id: 3, name: "Anish Gupta", role: "Software Engineer", mutual: 8 },
   ];
 
+  // Analytics State
+  const [stats, setStats] = useState({
+    postCount: 0,
+    totalLikes: 0,
+    totalComments: 0,
+    totalShares: 0,
+    avgInteraction: 0,
+    connections: 0,
+    loading: true
+  });
+
+  // Recommendations state
+  const [recommendations, setRecommendations] = useState([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
+
+  // Social Modal State
+  const [showListModal, setShowListModal] = useState(false);
+  const [listType, setListType] = useState("");
+  const [listData, setListData] = useState([]);
+  const [listLoading, setListLoading] = useState(false);
+
+  const fetchAnalytics = async (userId) => {
+    try {
+      const [userPosts, followersData, followingData] = await Promise.all([
+        getUserPosts(userId),
+        getFollowers(userId),
+        getFollowing(userId)
+      ]);
+
+      // Calculate simple stats
+      let likes = 0, comments = 0, shares = 0;
+      userPosts.forEach(p => {
+        likes += (p.likeCount || 0);
+        comments += (p.commentCount || 0);
+        shares += (p.shareCount || 0);
+      });
+
+      const totalPosts = userPosts.length;
+      const interactions = likes + comments;
+      const avg = totalPosts > 0 ? (interactions / totalPosts).toFixed(1) : 0;
+
+      // Calculate connections (mutual follows)
+      const followerIds = new Set(followersData.map(f => f.id));
+      const connectionsCount = followingData.filter(f => followerIds.has(f.id)).length;
+
+      setStats({
+        postCount: totalPosts,
+        totalLikes: likes,
+        totalComments: comments,
+        totalShares: shares,
+        avgInteraction: avg,
+        connections: connectionsCount,
+        loading: false
+      });
+    } catch (err) {
+      console.error("Failed to fetch analytics", err);
+      setStats(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const handleOpenList = async (type) => {
+    if (!currentUser) return;
+    setListType(type);
+    setShowListModal(true);
+    setListData([]);
+    setListLoading(true);
+
+    try {
+      const data = type === "Following" 
+        ? await getFollowing(currentUser.userId || currentUser.id)
+        : await getFollowers(currentUser.userId || currentUser.id);
+      setListData(data);
+    } catch (err) {
+      showToast("error", `Failed to load ${type.toLowerCase()}`);
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  const handleListFollowToggle = async (targetUser) => {
+    try {
+      const updated = await toggleFollow(targetUser.id);
+      setListData(prev => prev.map(u => u.id === targetUser.id ? { ...u, isFollowing: updated.isFollowing } : u));
+      // Refresh analytics as follow state changed
+      const user = getUserInfo();
+      if (user) fetchAnalytics(user.userId || user.id);
+    } catch (err) {
+      showToast("error", "Action failed");
+    }
+  };
+
+  const fetchRecommendations = async () => {
+    setLoadingRecs(true);
+    try {
+      const data = await getRecommendations(0, 10); // Fetch a few to ensure we have at least 3
+      setRecommendations(data.slice(0, 3)); // Show exactly 3
+    } catch (err) {
+      console.error("Failed to fetch recommendations:", err);
+    } finally {
+      setLoadingRecs(false);
+    }
+  };
+
+  const handleRecommendationFollow = async (userId) => {
+    try {
+      await toggleFollow(userId);
+      setRecommendations(prev => prev.filter(u => u.id !== userId));
+      showToast("success", "User followed!");
+      // Analytics might update if it was a mutual follow
+      const user = getUserInfo();
+      if (user) fetchAnalytics(user.userId || user.id);
+    } catch (err) {
+      showToast("error", "Failed to follow user");
+    }
+  };
+
   useEffect(() => {
     const init = async () => {
       const user = getUserInfo();
-      setCurrentUser(user);
+      if (user) {
+        const uId = user.userId || user.id;
+        try {
+          const fullProfile = await getUserProfile(uId);
+          setCurrentUser(fullProfile);
+          await fetchAnalytics(uId);
+        } catch (error) {
+          setCurrentUser(user);
+        }
+      }
       await fetchFeed();
+      await fetchRecommendations();
     };
     init();
   }, []);
@@ -337,7 +478,8 @@ export default function Home() {
     }
   };
 
-  const openEditModal = (post) => {
+  const openEditModal = (e, post) => {
+    if (e) e.stopPropagation();
     setSelectedPost(post);
     setEditContent(post.content);
     
@@ -361,7 +503,8 @@ export default function Home() {
     setActiveDropdownId(null);
   };
 
-  const openDeleteConfirm = (post) => {
+  const openDeleteConfirm = (e, post) => {
+    if (e) e.stopPropagation();
     setSelectedPost(post);
     setIsDeleteConfirmOpen(true);
     setActiveDropdownId(null);
@@ -386,10 +529,21 @@ export default function Home() {
     e.stopPropagation();
     const url = `${window.location.origin}/post/${post.id}`;
     try {
+      // 1. Copy to clipboard
       await navigator.clipboard.writeText(url);
-      showToast("success", "Link copied to clipboard!");
+      
+      // 2. Call backend to increment share count
+      await postService.sharePost(post.id);
+      
+      // 3. Update local state
+      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, shareCount: (p.shareCount || 0) + 1 } : p));
+      if (selectedPost && selectedPost.id === post.id) {
+        setSelectedPost(prev => ({ ...prev, shareCount: (prev.shareCount || 0) + 1 }));
+      }
+      
+      showToast("success", "Link copied and post shared!");
     } catch (err) {
-      showToast("error", "Failed to copy link");
+      showToast("error", "Failed to share post");
     }
   };
 
@@ -421,7 +575,7 @@ export default function Home() {
     setLikingIds(prev => new Set(prev).add(post.id));
 
     try {
-      const updatedPost = await postService.likePost(post.id);
+      const updatedPost = await postService.toggleLike(post.id);
       // Sync with server response
       setPosts(prev => prev.map(p => p.id === post.id ? updatedPost : p));
       if (selectedPost && selectedPost.id === post.id) {
@@ -540,29 +694,91 @@ export default function Home() {
     <div className="container feed-grid">
       {/* Left Column: Profile & Analytics */}
       <aside className="left-col">
-        <div className="card profile-card">
-          <div className="profile-banner"></div>
-          <div className="profile-info">
-            <div className="profile-avatar-container">
-              <div className="profile-avatar">
-                {currentUser ? (currentUser.fullName ? currentUser.fullName[0] : currentUser.sub[0]) : "U"}
+        <div className="card profile-card developer-sidebar">
+          <div className="profile-info-advanced">
+            <div className="sidebar-avatar-container">
+              {currentUser && (currentUser.profilePicUrl || currentUser.profileImageUrl) ? (
+                <img src={`${API_BASE}${currentUser.profilePicUrl || currentUser.profileImageUrl}`} alt={currentUser.fullName} className="sidebar-avatar-img" />
+              ) : (
+                <div className="sidebar-avatar-placeholder">
+                  {currentUser ? (currentUser.fullName ? currentUser.fullName[0] : currentUser.sub[0]) : "U"}
+                </div>
+              )}
+            </div>
+            
+            <h3 className="sidebar-name">{currentUser ? currentUser.fullName : "User"}</h3>
+            <p className="sidebar-bio">{currentUser?.bio || "No bio set"}</p>
+            
+            <div className="sidebar-academic">
+              <span>{currentUser?.program}</span>
+              {currentUser?.year && <span className="dot">•</span>}
+              {currentUser?.year && <span>{currentUser.year} Year</span>}
+            </div>
+
+            <div className="sidebar-social-counts">
+              <div className="social-count-item clickable" onClick={() => handleOpenList("Following")}>
+                <span className="count">{currentUser?.followingCount || 0}</span>
+                <span className="label">Following</span>
+              </div>
+              <div className="social-count-item clickable" onClick={() => handleOpenList("Followers")}>
+                <span className="count">{currentUser?.followersCount || 0}</span>
+                <span className="label">Followers</span>
               </div>
             </div>
-            <h3 className="profile-name">{currentUser ? currentUser.fullName : "User"}</h3>
-            <p className="profile-role">Community Member</p>
           </div>
-          <div className="profile-stats">
-            <div className="stat-item">
-              <span className="stat-label">Profile viewers</span>
-              <span className="stat-value">482</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Post impressions</span>
-              <span className="stat-value">1,240</span>
+
+          <div className="sidebar-analytics">
+            <h4 className="analytics-title">Personal Analytics</h4>
+            <div className="analytics-grid">
+              <div className="analytic-box">
+                <BarChart3 size={16} />
+                <div className="analytic-info">
+                  <span className="analytic-val">{stats.postCount}</span>
+                  <span className="analytic-label">Posts</span>
+                </div>
+              </div>
+              <div className="analytic-box">
+                <ThumbsUp size={16} />
+                <div className="analytic-info">
+                  <span className="analytic-val">{stats.totalLikes}</span>
+                  <span className="analytic-label">Total Likes</span>
+                </div>
+              </div>
+              <div className="analytic-box">
+                <MessageSquare size={16} />
+                <div className="analytic-info">
+                  <span className="analytic-val">{stats.totalComments}</span>
+                  <span className="analytic-label">Comments</span>
+                </div>
+              </div>
+              <div className="analytic-box">
+                <TrendingUp size={16} />
+                <div className="analytic-info">
+                  <span className="analytic-val">{stats.avgInteraction}</span>
+                  <span className="analytic-label">Engagement</span>
+                </div>
+              </div>
+              <div className="analytic-box">
+                <Share2 size={16} />
+                <div className="analytic-info">
+                  <span className="analytic-val">{stats.totalShares}</span>
+                  <span className="analytic-label">Shares</span>
+                </div>
+              </div>
+              <div className="analytic-box">
+                <Users size={16} />
+                <div className="analytic-info">
+                  <span className="analytic-val">{stats.connections}</span>
+                  <span className="analytic-label">Connections</span>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="profile-footer">
-            <a href="/profile">My items</a>
+
+          <div className="sidebar-footer">
+            <button className="view-profile-btn" onClick={() => navigate('/profile')}>
+              Visit Profile
+            </button>
           </div>
         </div>
       </aside>
@@ -648,6 +864,21 @@ export default function Home() {
             style={{ display: 'none' }} 
           />
         </div>
+        
+        <style>{`
+          .clickable { cursor: pointer; }
+          .clickable:hover { opacity: 0.85; }
+          .post-author-avatar, .avatar-large, .comment-avatar, .comment-avatar-small, .person-pfp { 
+            overflow: hidden; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: #38434F; 
+            border-radius: 50% !important;
+          }
+          .avatar-img { width: 100%; height: 100%; object-fit: cover; }
+          .author-name.clickable:hover, .name-large.clickable:hover, .comment-author.clickable:hover { text-decoration: underline; color: var(--primary); }
+        `}</style>
 
         {/* Feed Posts */}
         <div className="feed-list">
@@ -664,16 +895,42 @@ export default function Home() {
             </div>
           ) : (
             posts.map((post) => {
-              const isOwner = currentUser && post.user && (post.user.email === currentUser.sub);
+              const currentId = currentUser?.userId || currentUser?.id;
+              const postUserId = post.userId || post.user?.id;
+              const isOwner = currentUser && postUserId && (
+                String(postUserId) === String(currentId) || 
+                (post.user && post.user.email === currentUser.sub)
+              );
               
               return (
                 <div key={post.id} className="card post-card" onClick={() => openDetailView(post)}>
                   <div className="post-header">
-                    <div className="post-author-avatar">
-                      {post.user ? post.user.fullName[0] : "U"}
+                    <div 
+                      className="post-author-avatar clickable" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (post.user) navigate(`/profile/${post.user.id}`);
+                      }}
+                    >
+                      {(() => {
+                        const picUrl = post.user?.profilePicUrl || post.user?.profileImageUrl;
+                        return picUrl ? (
+                          <img src={`${API_BASE}${picUrl}`} alt={post.user.fullName} className="avatar-img" />
+                        ) : (
+                          post.user ? post.user.fullName[0] : "U"
+                        );
+                      })()}
                     </div>
                     <div className="post-author-info">
-                      <h4 className="author-name">{post.user ? post.user.fullName : "Unknown User"}</h4>
+                      <h4 
+                        className="author-name clickable"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (post.user) navigate(`/profile/${post.user.id}`);
+                        }}
+                      >
+                        {post.user ? post.user.fullName : "Unknown User"}
+                      </h4>
                       <p className="author-role">{post.user ? post.user.program + " " + post.user.year + " Year" : "Community Member"}</p>
                       <p className="post-time"><Clock size={12} /> {formatDate(post.createdAt)}</p>
                     </div>
@@ -690,10 +947,10 @@ export default function Home() {
                         <div className="dropdown-menu" onClick={(e) => e.stopPropagation()}>
                           {isOwner ? (
                             <>
-                              <button className="dropdown-item" onClick={() => openEditModal(post)}>
+                              <button className="dropdown-item" onClick={(e) => openEditModal(e, post)}>
                                 <Edit size={16} /> Edit Post
                               </button>
-                              <button className="dropdown-item delete" onClick={() => openDeleteConfirm(post)}>
+                              <button className="dropdown-item delete" onClick={(e) => openDeleteConfirm(e, post)}>
                                 <Trash2 size={16} /> Delete Post
                               </button>
                             </>
@@ -712,7 +969,13 @@ export default function Home() {
                   </div>
 
                   {post.media && post.media.length > 0 && (
-                    <div className={`post-media-display ${post.media[0].mediaType === 'IMAGE' ? `grid-${Math.min(post.media.length, 3)}` : 'video-display'}`} onClick={(e) => e.stopPropagation()}>
+                    <div 
+                      className={`post-media-display ${post.media[0].mediaType === 'IMAGE' ? `grid-${Math.min(post.media.length, 3)}` : 'video-display'}`} 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openDetailView(post);
+                      }}
+                    >
                       {post.media.map((m) => (
                         <div key={m.id} className="media-item">
                           {m.mediaType === 'IMAGE' ? (
@@ -745,7 +1008,10 @@ export default function Home() {
                       <ThumbsUp size={20} fill={post.isLiked ? "currentColor" : "none"} /> 
                       {post.isLiked ? "Liked" : "Like"}
                     </button>
-                    <button className="footer-btn"><MessageSquare size={20} /> Comment</button>
+                    <button className="footer-btn" onClick={(e) => {
+                       e.stopPropagation();
+                       openDetailView(post);
+                    }}><MessageSquare size={20} /> Comment</button>
                     <button className="footer-btn" onClick={(e) => handleShare(e, post)}><Share2 size={20} /> Share</button>
                   </div>
                 </div>
@@ -756,45 +1022,144 @@ export default function Home() {
       </main>
 
       {/* Right Column: People You May Know */}
+      {/* Right Column: Recommendations */}
       <aside className="right-col">
-        <div className="card suggestions-card">
-          <h3 className="card-title">People you may know</h3>
-          <div className="suggestions-list">
-            {suggestions.map(person => (
-              <div key={person.id} className="suggestion-item">
-                <div className="suggestion-avatar">{person.name[0]}</div>
-                <div className="suggestion-info">
-                  <h4 className="suggestion-name">{person.name}</h4>
-                  <p className="suggestion-role">{person.role}</p>
-                  <button className="btn-follow">
-                    <Plus size={16} /> Follow
-                  </button>
-                </div>
-              </div>
-            ))}
+        <div className="card connections-card">
+          <div className="card-header" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <TrendingUp size={20} className="text-primary" />
+            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '700' }}>Connections</h3>
           </div>
-          <button className="btn-view-all">View all recommendations</button>
+          
+          <div className="recommendations-list">
+            {loadingRecs ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+                <div className="spinner" style={{ width: '20px', height: '20px' }}></div>
+              </div>
+            ) : recommendations.length > 0 ? (
+              recommendations.map(user => (
+                <div key={user.id} className="rec-item" style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  gap: '8px',
+                  padding: '12px 0',
+                  borderBottom: '1px solid var(--border)' 
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate(`/profile/${user.id}`)}>
+                      <div className="person-pfp" style={{ width: '36px', height: '36px' }}>
+                        {user.profileImageUrl ? (
+                          <img src={`${API_BASE}${user.profileImageUrl}`} alt={user.fullName} className="avatar-img" />
+                        ) : (
+                          <span className="pfp-placeholder-sm" style={{ fontSize: '14px' }}>{user.fullName[0]}</span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text-primary)' }}>{user.fullName}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '500' }}>
+                          {user.year} Year · {user.program}
+                        </span>
+                      </div>
+                    </div>
+                    <button 
+                      className="btn btn-primary" 
+                      style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '12px' }}
+                      onClick={() => handleRecommendationFollow(user.id)}
+                    >
+                      Follow
+                    </button>
+                  </div>
+                  
+                  <div style={{ paddingLeft: '46px' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      <span style={{ background: 'rgba(88, 166, 255, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+                        Section {user.section || 'N/A'}
+                      </span>
+                    </div>
+                    {user.bio && (
+                      <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {user.bio}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', fontStyle: 'italic', padding: '20px 0' }}>
+                No new connections found.
+              </p>
+            )}
+          </div>
+          
+          {recommendations.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
+              <button 
+                className="btn btn-ghost" 
+                style={{ width: '100%', fontSize: '13px' }}
+                onClick={fetchRecommendations}
+              >
+                Refresh Suggestions
+              </button>
+              <button 
+                className="btn btn-primary" 
+                style={{ width: '100%', fontSize: '13px', background: 'transparent', border: '1px solid var(--primary)', color: 'var(--primary)' }}
+                onClick={() => navigate('/connections')}
+              >
+                View all recommendations
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
       <style>{`
-        .profile-card { padding: 0; position: sticky; top: 88px; }
-        .profile-banner { height: 56px; background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%); }
-        .profile-info { text-align: center; padding: 0 12px 16px; border-bottom: 1px solid var(--border); }
-        .profile-avatar-container { margin-top: -32px; margin-bottom: 12px; display: flex; justify-content: center; }
-        .profile-avatar {
-          width: 72px; height: 72px; background: #38434F; border: 4px solid var(--card);
-          border-radius: 50%; display: flex; align-items: center; justify-content: center;
-          font-weight: bold; font-size: 24px; color: var(--text-primary);
+        .developer-sidebar { padding: 0; position: sticky; top: 88px; background: #161B22; border: 1px solid #30363D; display: flex; flex-direction: column; overflow: hidden; min-height: 600px; }
+        .profile-info-advanced { padding: 24px 16px; display: flex; flex-direction: column; align-items: center; border-bottom: 1px solid #30363D; background: linear-gradient(to bottom, #1c2128, #161b22); }
+        .sidebar-avatar-container { margin-bottom: 16px; position: relative; }
+        .sidebar-avatar-img { 
+          width: 90px; height: 90px; border-radius: 50%; border: 3px solid #30363D; 
+          object-fit: cover; background: #38434F;
         }
-        .profile-name { font-size: 16px; margin: 0; color: var(--text-primary); }
-        .profile-role { font-size: 12px; color: var(--text-secondary); margin: 4px 0 0; }
-        .profile-stats { padding: 12px; border-bottom: 1px solid var(--border); }
-        .stat-item { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; }
-        .stat-label { color: var(--text-secondary); }
-        .stat-value { color: var(--primary); font-weight: 600; }
-        .profile-footer { padding: 12px; font-size: 12px; }
-        .profile-footer a { color: var(--text-primary); font-weight: 600; }
+        .sidebar-avatar-placeholder {
+          width: 90px; height: 90px; border-radius: 50%; border: 3px solid #30363D;
+          background: #38434F; display: flex; align-items: center; justify-content: center;
+          font-size: 32px; font-weight: bold; color: var(--primary);
+        }
+        .sidebar-name { font-size: 18px; font-weight: 700; margin: 0; color: #E6EDF3; }
+        .sidebar-bio { font-size: 13px; color: #8B949E; margin: 8px 0; text-align: center; line-height: 1.4; max-width: 100%; }
+        .sidebar-academic { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--primary); font-weight: 500; margin-bottom: 16px; }
+        .dot { color: #8B949E; }
+        
+        .sidebar-social-counts { display: flex; gap: 24px; width: 100%; justify-content: center; }
+        .social-count-item { display: flex; flex-direction: column; align-items: center; }
+        .social-count-item.clickable { cursor: pointer; transition: transform 0.2s; }
+        .social-count-item.clickable:hover { transform: translateY(-2px); }
+        .social-count-item .count { font-size: 16px; font-weight: 700; color: #E6EDF3; }
+        .social-count-item .label { font-size: 11px; color: #8B949E; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .sidebar-analytics { padding: 20px 16px; flex: 1; }
+        .analytics-title { font-size: 11px; color: #8B949E; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .analytics-title::after { content: ''; flex: 1; height: 1px; background: #30363D; }
+        
+        .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .analytic-box { 
+          background: #0D1117; border: 1px solid #30363D; border-radius: 8px; 
+          padding: 12px; display: flex; items-center; gap: 10px;
+          transition: all 0.2s;
+        }
+        .analytic-box:hover { border-color: var(--primary); background: #161B22; }
+        .analytic-box svg { color: var(--primary); flex-shrink: 0; }
+        .analytic-info { display: flex; flex-direction: column; }
+        .analytic-val { font-size: 14px; font-weight: 700; color: #E6EDF3; }
+        .analytic-label { font-size: 10px; color: #8B949E; }
+        
+        .sidebar-footer { padding: 16px; background: #0D1117; border-top: 1px solid #30363D; }
+        .view-profile-btn { 
+          width: 100%; padding: 10px; border-radius: 6px; 
+          background: transparent; border: 1px solid #30363D; 
+          color: #E6EDF3; font-size: 13px; font-weight: 600;
+          cursor: pointer; transition: all 0.2s;
+        }
+        .view-profile-btn:hover { background: var(--primary); border-color: var(--primary); color: white; }
 
         .create-post { margin-bottom: 24px; transition: all 0.3s ease; }
         .create-post.expanded { padding: 0; }
@@ -865,7 +1230,7 @@ export default function Home() {
 
         .post-card { padding: 0; margin-bottom: 24px; border-radius: 8px; }
         .post-header { display: flex; padding: 12px 16px; gap: 12px; position: relative; }
-        .post-author-avatar { width: 48px; height: 48px; background: #38434F; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary); }
+        .post-author-avatar { width: 48px; height: 48px; background: #38434F; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary); }
         .post-author-info { flex: 1; }
         .author-name { margin: 0; font-size: 14px; color: var(--text-primary); }
         .author-role { margin: 0; font-size: 12px; color: var(--text-secondary); }
@@ -993,8 +1358,9 @@ export default function Home() {
         
         .author-info-large { display: flex; gap: 12px; align-items: center; }
         .avatar-large {
-          width: 48px; height: 48px; background: #38434F; border-radius: 8px;
+          width: 48px; height: 48px; background: #38434F; border-radius: 50%;
           display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary);
+          overflow: hidden;
         }
         .name-large { margin: 0; font-size: 16px; font-weight: 600; }
         .time-large { margin: 2px 0 0; font-size: 12px; color: var(--text-muted); }
@@ -1017,30 +1383,31 @@ export default function Home() {
         .stat-pill.clickable { cursor: pointer; }
         .stat-pill.clickable:hover { color: var(--primary); text-decoration: underline; }
 
-        .likers-list { display: flex; flex-direction: column; }
-        .liker-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); transition: background 0.2s; }
-        .liker-item:last-child { border-bottom: none; }
-        .liker-item:hover { background: rgba(255, 255, 255, 0.05); }
-        .liker-avatar { width: 40px; height: 40px; background: #38434F; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary); }
-        .liker-info { flex: 1; }
-        .liker-name { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); }
-        .liker-details { margin: 2px 0 0; font-size: 12px; color: var(--text-secondary); }
+
 
         /* Comment Styles */
         .comment-item { display: flex; gap: 10px; margin-bottom: 16px; align-items: flex-start; }
-        .comment-avatar { width: 32px; height: 32px; background: var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--primary); font-weight: bold; flex-shrink: 0; }
+        .comment-avatar { width: 32px; height: 32px; background: var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--primary); font-weight: bold; flex-shrink: 0; }
         .comment-content-wrap { flex: 1; }
         .comment-bubble { background: #1a222a; padding: 10px 12px; border-radius: 0 12px 12px 12px; border: 1px solid var(--border); }
         .comment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
         .comment-author { font-size: 13px; font-weight: 600; color: var(--text-primary); }
         .comment-time { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
-        .comment-text { margin: 0; font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+        .comment-text { margin: 0; font-size: 14px; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
         .comment-actions { display: flex; gap: 12px; margin-top: 4px; padding-left: 4px; }
         .comment-actions button { background: none; border: none; font-size: 11px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 4px; }
         .comment-actions button:hover { color: var(--primary); }
         
         .comment-input-form { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); }
-        .comment-avatar-small { width: 32px; height: 32px; background: var(--primary); color: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; flex-shrink: 0; }
+        .comment-avatar-small { 
+          width: 32px; height: 32px; 
+          background: #38434F; 
+          border-radius: 50% !important; 
+          display: flex; align-items: center; justify-content: center; 
+          font-size: 12px; font-weight: bold; flex-shrink: 0; 
+          overflow: hidden;
+          color: var(--primary);
+        }
         .comment-input-wrap { flex: 1; display: flex; background: #1a222a; border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; align-items: center; }
         .comment-input-wrap input { flex: 1; background: transparent; border: none; color: var(--text-primary); padding: 8px 0; font-size: 14px; outline: none; }
         .comment-input-wrap button { background: transparent; border: none; color: var(--primary); cursor: pointer; padding: 4px; display: flex; align-items: center; }
@@ -1077,15 +1444,70 @@ export default function Home() {
             <div className="detail-info-side">
               <div className="info-header" style={{ background: 'var(--card)' }}>
                 <div className="author-info-large">
-                  <div className="avatar-large">{selectedPost.user ? selectedPost.user.fullName[0] : "U"}</div>
+                  <div 
+                    className="avatar-large clickable"
+                    onClick={() => {
+                      if (selectedPost.user) navigate(`/profile/${selectedPost.user.id}`);
+                    }}
+                  >
+                    {(() => {
+                        const picUrl = selectedPost.user?.profilePicUrl || selectedPost.user?.profileImageUrl;
+                        return picUrl ? (
+                          <img src={`${API_BASE}${picUrl}`} alt={selectedPost.user.fullName} className="avatar-img" />
+                        ) : (
+                          selectedPost.user ? selectedPost.user.fullName[0] : "U"
+                        );
+                    })()}
+                  </div>
                   <div>
-                    <h4 className="name-large">{selectedPost.user ? selectedPost.user.fullName : "Unknown User"}</h4>
+                    <h4 
+                      className="name-large clickable"
+                      onClick={() => {
+                        if (selectedPost.user) navigate(`/profile/${selectedPost.user.id}`);
+                      }}
+                    >
+                      {selectedPost.user ? selectedPost.user.fullName : "Unknown User"}
+                    </h4>
                     <p className="time-large">{formatDate(selectedPost.createdAt)}</p>
                   </div>
                 </div>
-                <button className="modal-close-btn" onClick={closeDetailView}>
-                  <X size={24} />
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {(() => {
+                    const currentId = currentUser?.userId || currentUser?.id;
+                    const postUserId = selectedPost.userId || selectedPost.user?.id;
+                    const isOwner = currentUser && postUserId && (
+                      String(postUserId) === String(currentId) || 
+                      (selectedPost.user && selectedPost.user.email === currentUser.sub)
+                    );
+                    return isOwner;
+                  })() && (
+                    <div className="post-options" style={{ position: 'relative', top: 'unset', right: 'unset' }}>
+                      <button 
+                        className={`btn-icon ${activeDropdownId === selectedPost.id ? 'active' : ''}`} 
+                        onClick={(e) => toggleDropdown(e, selectedPost.id)}
+                      >
+                        <MoreVertical size={20} />
+                      </button>
+                      {activeDropdownId === selectedPost.id && (
+                        <div className="dropdown-menu" style={{ top: '100%', right: 0 }}>
+                          <button className="dropdown-item" onClick={(e) => openEditModal(e, selectedPost)}>
+                            <Edit size={16} /> Edit Post
+                          </button>
+                          <button className="dropdown-item delete" onClick={(e) => openDeleteConfirm(e, selectedPost)}>
+                            <Trash2 size={16} /> Delete Post
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <button 
+                    className="modal-close-btn" 
+                    onClick={closeDetailView}
+                    style={{ background: 'transparent', border: 'none', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
               </div>
 
               <div className="info-body">
@@ -1093,9 +1515,9 @@ export default function Home() {
                 
                 <div className="detail-stats" style={{ padding: '12px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', display: 'flex', gap: '16px' }}>
                   <span className="stat-pill clickable" onClick={(e) => openLikesList(e, selectedPost.id)}>
-                    <ThumbsUp size={14} /> {selectedPost.likeCount} Likes
+                    <ThumbsUp size={14} /> {selectedPost.likeCount || 0} Likes
                   </span>
-                  <span className="stat-pill"><MessageSquare size={14} /> {selectedPost.commentCount} Comments</span>
+                  <span className="stat-pill"><MessageSquare size={14} /> {selectedPost.commentCount || 0} Comments</span>
                 </div>
 
                 <div className="comments-section" style={{ marginTop: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -1106,11 +1528,25 @@ export default function Home() {
                       <>
                         {comments.map((comment) => (
                           <div key={comment.id} className="comment-item">
-                            <div className="comment-avatar">{comment.fullName[0]}</div>
+                            <div 
+                              className="comment-avatar clickable"
+                              onClick={() => navigate(`/profile/${comment.userId}`)}
+                            >
+                              {comment.profileImageUrl ? (
+                                  <img src={`${API_BASE}${comment.profileImageUrl}`} alt={comment.fullName} className="avatar-img" />
+                              ) : (
+                                  comment.fullName[0]
+                              )}
+                            </div>
                             <div className="comment-content-wrap">
                               <div className="comment-bubble">
                                 <div className="comment-header">
-                                  <span className="comment-author">{comment.fullName}</span>
+                                  <span 
+                                    className="comment-author clickable"
+                                    onClick={() => navigate(`/profile/${comment.userId}`)}
+                                  >
+                                    {comment.fullName}
+                                  </span>
                                   <span className="comment-time">
                                     <Clock size={10} /> {formatCommentDate(comment.createdAt)}
                                     {comment.updatedAt && new Date(comment.updatedAt).getTime() > new Date(comment.createdAt).getTime() + 1000 && (
@@ -1172,7 +1608,13 @@ export default function Home() {
               }}>
                 {/* Comment Input Sticky above actions */}
                 <form className="comment-input-form" onSubmit={handleCommentSubmit} style={{ marginBottom: '12px', borderTop: 'none', padding: 0 }}>
-                  <div className="comment-avatar-small">{currentUser?.fullName[0]}</div>
+                  <div className="comment-avatar-small">
+                    {currentUser && currentUser.profilePicUrl ? (
+                      <img src={`${API_BASE}${currentUser.profilePicUrl}`} alt={currentUser.fullName} className="avatar-img" />
+                    ) : (
+                      currentUser?.fullName ? currentUser.fullName[0] : (currentUser?.sub ? currentUser.sub[0] : "U")
+                    )}
+                  </div>
                   <div className="comment-input-wrap">
                     <input 
                       placeholder="Write a comment..." 
@@ -1286,47 +1728,29 @@ export default function Home() {
         </div>
       )}
 
-      {/* Likers List Modal */}
-      {isLikesListOpen && (
-        <div className="modal-overlay" onClick={() => setIsLikesListOpen(false)}>
-          <div className="modal-content confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ThumbsUp size={18} color="var(--primary)" />
-                <h3 style={{ margin: 0, fontSize: '1rem' }}>People who liked</h3>
-              </div>
-              <button className="modal-close-btn" onClick={() => setIsLikesListOpen(false)}><X size={20} /></button>
-            </div>
-            <div className="modal-body likers-list" style={{ padding: 0, maxHeight: '500px', overflowY: 'auto' }}>
-              {likingUsers.map((user) => (
-                <div key={user.id} className="liker-item">
-                  <div className="liker-avatar">{user.fullName[0]}</div>
-                  <div className="liker-info">
-                    <p className="liker-name">{user.fullName}</p>
-                    <p className="liker-details">{user.program} · {user.year} Year</p>
-                  </div>
-                </div>
-              ))}
-              
-              {likesListLoading && (
-                <div style={{ padding: '20px', textAlign: 'center' }}>
-                  <div className="spinner" style={{ width: '24px', height: '24px', margin: '0 auto' }}></div>
-                </div>
-              )}
+      {/* Likers List Modal (Shared Component) */}
+      <PeopleListModal 
+        isOpen={isLikesListOpen}
+        onClose={() => setIsLikesListOpen(false)}
+        title="People who liked"
+        data={likingUsers}
+        loading={likesListLoading}
+        onToggleFollow={handleListFollowToggle}
+        API_BASE={API_BASE}
+        navigate={navigate}
+      />
 
-              {!likesListLoading && likingUsers.length === 0 && (
-                <p style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>No likes yet.</p>
-              )}
-
-              {!likesListLoading && likesListHasMore && (
-                <button className="btn btn-ghost" style={{ width: '100%', borderRadius: 0, padding: '12px' }} onClick={loadMoreLikes}>
-                  Load More
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Social List Modal (Shared Component) */}
+      <PeopleListModal 
+        isOpen={showListModal}
+        onClose={() => setShowListModal(false)}
+        title={listType}
+        data={listData}
+        loading={listLoading}
+        onToggleFollow={handleListFollowToggle}
+        API_BASE={API_BASE}
+        navigate={navigate}
+      />
     </div>
   );
 }

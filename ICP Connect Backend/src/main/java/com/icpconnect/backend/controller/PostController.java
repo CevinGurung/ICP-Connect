@@ -39,6 +39,14 @@ public class PostController {
         return ResponseEntity.ok(feed);
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<Post>> getUserPosts(
+            @PathVariable Long userId,
+            @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
+        Long currentUserId = (principal != null) ? principal.getUser().getId() : null;
+        return ResponseEntity.ok(postService.getPostsByUserId(userId, currentUserId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Post> getPostById(@PathVariable Long id, @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
         Long userId = (principal != null) ? principal.getUser().getId() : null;
@@ -50,6 +58,12 @@ public class PostController {
     public ResponseEntity<Post> toggleLike(@PathVariable Long id, @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
         Post post = postService.toggleLike(id, principal.getUser().getId());
         return ResponseEntity.ok(post);
+    }
+
+    @PostMapping("/{id}/share")
+    public ResponseEntity<Void> sharePost(@PathVariable Long id) {
+        postService.sharePost(id);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{id}/likes")
