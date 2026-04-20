@@ -2,15 +2,15 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login as loginApi } from "../services/authService.js";
 import { setTokens } from "../auth/auth.js";
+import { useNotification } from "../App.jsx";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { showToast } = useNotification();
   const [form, setForm] = useState({ email: "", password: "", otp: "" });
   const [step, setStep] = useState(1); // 1: Credentials, 2: OTP
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  const [success, setSuccess] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
 
   useEffect(() => {
@@ -27,26 +27,38 @@ export default function Login() {
 
   const onSubmit = async (e) => {
     if (e) e.preventDefault();
-    setErr("");
-    setSuccess("");
+    
+    if (!form.email.trim().endsWith("@icp.edu.np")) {
+      showToast("error", "Only @icp.edu.np emails are allowed");
+      return;
+    }
+
     setLoading(true);
     try {
       const data = await loginApi(form);
       
       if (data.otpRequired) {
         setStep(2);
-        setSuccess("Secure OTP sent to your email.");
+        showToast("success", "Secure OTP sent to your email.");
         setResendTimer(30);
       } else {
         setTokens(data.accessToken, data.refreshToken);
         navigate("/", { replace: true });
       }
     } catch (error) {
-      const msg =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        "Login failed";
-      setErr(msg);
+      let msg = "Login failed";
+      const status = error?.response?.status;
+      const errorMsg = error?.response?.data?.message || "";
+
+      if (status === 404 || errorMsg.toLowerCase().includes("not found")) {
+        msg = "Account not found. Please register first.";
+      } else if (status === 401 || errorMsg.toLowerCase().includes("credentials")) {
+        msg = "Invalid email or password";
+      } else if (errorMsg) {
+        msg = errorMsg;
+      }
+      
+      showToast("error", msg);
     } finally {
       setLoading(false);
     }
@@ -54,7 +66,7 @@ export default function Login() {
 
   const handleResend = () => {
     if (resendTimer > 0) return;
-    onSubmit(); // Re-submit credentials to trigger new OTP
+    onSubmit();
   };
 
   return (
@@ -65,9 +77,6 @@ export default function Login() {
           <p className="muted" style={{ fontSize: '14px' }}>
             {step === 1 ? "Login to access your account." : `We've sent a code to ${form.email}`}
           </p>
-
-          {err ? <div className="alert alert-error">{err}</div> : null}
-          {success ? <div className="alert alert-success">{success}</div> : null}
 
           {step === 1 ? (
             <form className="form" onSubmit={onSubmit}>
@@ -116,7 +125,7 @@ export default function Login() {
           ) : (
             <form className="form" onSubmit={onSubmit}>
               <label className="field" style={{ textAlign: 'center' }}>
-                <span style={{ dispaly: 'block', marginBottom: '8px' }}>Enter 6-digit OTP</span>
+                <span style={{ display: 'block', marginBottom: '8px' }}>Enter 6-digit OTP</span>
                 <input
                   name="otp"
                   value={form.otp}

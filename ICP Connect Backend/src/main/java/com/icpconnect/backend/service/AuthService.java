@@ -50,6 +50,14 @@ public class AuthService {
         // Validate OTP using Cache
         otpService.validateOtp(request.email(), request.otp());
 
+        if (!request.email().trim().endsWith("@icp.edu.np")) {
+            throw new IllegalArgumentException("Registration is restricted to @icp.edu.np emails.");
+        }
+
+        if (request.password() == null || request.password().length() < 8) {
+            throw new IllegalArgumentException("Password must be at least 8 characters long.");
+        }
+
         if (userRepository.existsByEmail(request.email())) {
             throw new IllegalArgumentException("Email already registered");
         }

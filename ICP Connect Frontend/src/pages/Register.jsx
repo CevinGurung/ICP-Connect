@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register as registerApi, sendOtp } from "../services/authService.js";
 import { setTokens } from "../auth/auth.js";
+import { useNotification } from "../App.jsx";
 
 export default function Register() {
   const navigate = useNavigate();
+  const { showToast } = useNotification();
   const [form, setForm] = useState({
     fullName: "",
     userName: "",
@@ -19,8 +21,6 @@ export default function Register() {
   const [step, setStep] = useState(1); // 1: Info, 2: OTP
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  const [success, setSuccess] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
 
   useEffect(() => {
@@ -41,29 +41,27 @@ export default function Register() {
 
   const handleRequestOtp = async (e) => {
     if (e) e.preventDefault();
-    setErr("");
-    setSuccess("");
     
     const emailToUse = form.email.trim();
     if (!validateEmail(emailToUse)) {
-      setErr("Email must be an @icp.edu.np domain");
+      showToast("error", "Only @icp.edu.np emails are allowed");
       return;
     }
 
     if (form.password.length < 8) {
-      setErr("Password must be at least 8 characters long");
+      showToast("error", "Password must be at least 8 characters");
       return;
     }
 
     setLoading(true);
     try {
       await sendOtp(emailToUse);
-      setSuccess("OTP sent to your email!");
+      showToast("success", "OTP sent to your email!");
       setStep(2);
       setResendTimer(30);
     } catch (error) {
       const msg = error?.response?.data?.message || "Failed to send OTP";
-      setErr(msg);
+      showToast("error", msg);
     } finally {
       setLoading(false);
     }
@@ -71,20 +69,19 @@ export default function Register() {
 
   const onSubmit = async (e) => {
     e.preventDefault();
-    setErr("");
     setLoading(true);
     const cleanedForm = { ...form, email: form.email.trim() };
     try {
       const data = await registerApi(cleanedForm);
       setTokens(data.accessToken, data.refreshToken);
-      setSuccess("Account created successfully! Logging you in...");
+      showToast("success", "Account created successfully! Logging you in...");
       setTimeout(() => navigate("/"), 2000);
     } catch (error) {
       const msg =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
         "Registration failed";
-      setErr(msg);
+      showToast("error", msg);
     } finally {
       setLoading(false);
     }
@@ -96,9 +93,6 @@ export default function Register() {
         <div className="card auth-card">
           <h1 className="title">Create account</h1>
           <p className="muted" style={{ fontSize: '14px' }}>Join the ICP Connect community.</p>
-
-          {err ? <div className="alert alert-error">{err}</div> : null}
-          {success ? <div className="alert alert-success">{success}</div> : null}
 
           {step === 1 ? (
             <form className="form" onSubmit={handleRequestOtp}>

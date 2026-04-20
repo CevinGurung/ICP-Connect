@@ -6,15 +6,14 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.icpconnect.backend.security.SecurityUser;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -68,14 +67,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         User user = userOpt.get();
 
-        // IMPORTANT: Spring Security expects roles like ROLE_ADMIN, ROLE_STUDENT, etc.
-        String roleName = "ROLE_" + user.getRole().name();
+        SecurityUser securityUser = new SecurityUser(user);
 
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
-                        user.getEmail(), // principal (you can also use a UserDetails later)
-                        null,            // credentials not needed
-                        List.of(new SimpleGrantedAuthority(roleName))
+                        securityUser,
+                        null,
+                        securityUser.getAuthorities()
                 );
 
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

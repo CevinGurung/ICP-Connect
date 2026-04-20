@@ -38,6 +38,8 @@ export default function Navbar() {
     { to: "/profile", icon: <UserIcon size={24} />, label: "Profile" },
   ];
 
+  if (isAuthPage) return null;
+
   return (
     <header className="navbar">
       <div className="container navbar-inner">
@@ -46,8 +48,9 @@ export default function Navbar() {
             <img 
               src={`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8848"}/uploads/Logo.png`}
               alt="Logo" 
-              className="navbar-logo" 
+              className="navbar-logo logo-glow" 
             />
+            <span className="brand-text-refined">ICP Connect</span>
           </Link>
           
           {loggedIn && !isAuthPage && (
@@ -103,6 +106,9 @@ export default function Navbar() {
           justify-content: space-between;
           align-items: center;
           width: 100%;
+          max-width: 1100px;
+          margin: 0 auto;
+          padding: 0 16px;
         }
         .navbar-left {
           display: flex;
@@ -113,7 +119,13 @@ export default function Navbar() {
         .navbar-logo {
           height: 34px;
           width: 34px;
-          border-radius: 4px;
+          border-radius: 6px;
+        }
+        .navbar-brand {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          text-decoration: none;
         }
         .navbar-search {
           background: #38434F;
@@ -187,7 +199,7 @@ export default function Navbar() {
         }
 
         @media (max-width: 768px) {
-          .nav-item-label {
+          .nav-item-label, .brand-text-refined {
             display: none;
           }
           .nav-item {

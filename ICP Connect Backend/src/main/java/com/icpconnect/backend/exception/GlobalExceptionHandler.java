@@ -18,7 +18,8 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(Map.of(
                         "timestamp", Instant.now(),
-                        "error", ex.getMessage()
+                        "message", ex.getMessage(),
+                        "status", HttpStatus.BAD_REQUEST.value()
                 ));
     }
 
@@ -29,7 +30,8 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of(
                         "timestamp", Instant.now(),
-                        "error", "Internal server error"
+                        "message", ex.getMessage() != null ? ex.getMessage() : "Internal server error",
+                        "status", HttpStatus.INTERNAL_SERVER_ERROR.value()
                 ));
     }
 }
