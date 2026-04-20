@@ -36,6 +36,7 @@ import {
   getRecommendations
 } from "../services/userService.js";
 import PeopleListModal from "../components/PeopleListModal";
+import FollowButton from "../components/FollowButton";
 
 export default function Home() {
   const { showToast } = useNotification();
@@ -1062,13 +1063,12 @@ export default function Home() {
                         </span>
                       </div>
                     </div>
-                    <button 
-                      className="btn btn-primary" 
-                      style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '12px' }}
-                      onClick={() => handleRecommendationFollow(user.id)}
-                    >
-                      Follow
-                    </button>
+                    <FollowButton
+                      isFollowing={user.isFollowing}
+                      isFollowedBy={user.isFollowedBy}
+                      onToggle={() => handleRecommendationFollow(user.id)}
+                      size="sm"
+                    />
                   </div>
                   
                   <div style={{ paddingLeft: '46px' }}>

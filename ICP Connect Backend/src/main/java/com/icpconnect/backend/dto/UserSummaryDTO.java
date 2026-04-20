@@ -6,6 +6,7 @@ public record UserSummaryDTO(
     String userName,
     String profileImageUrl,
     boolean isFollowing,
+    boolean isFollowedBy,
     boolean isOwnProfile,
     String bio,
     String program,

@@ -4,6 +4,7 @@ import { getRecommendations, toggleFollow } from "../services/userService";
 import { getUserInfo } from "../auth/auth";
 import { useNotification } from "../App";
 import { Users, UserPlus, UserCheck, MapPin, GraduationCap, Info } from "lucide-react";
+import FollowButton from "../components/FollowButton";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8848";
 
@@ -133,16 +134,12 @@ export default function Connections() {
                 </div>
 
                 <div className="card-footer">
-                  <button 
-                    className={`btn-connect ${user.isFollowing ? 'following' : ''}`}
-                    onClick={() => handleFollowToggle(user.id)}
-                  >
-                    {user.isFollowing ? (
-                      <><UserCheck size={18} /> Following</>
-                    ) : (
-                      <><UserPlus size={18} /> Connect</>
-                    )}
-                  </button>
+                  <FollowButton
+                    isFollowing={user.isFollowing}
+                    isFollowedBy={user.isFollowedBy}
+                    onToggle={() => handleFollowToggle(user.id)}
+                    size="md"
+                  />
                 </div>
               </div>
             </div>

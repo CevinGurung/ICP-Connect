@@ -13,5 +13,6 @@ public record UserProfileDTO(
     long followersCount,
     long followingCount,
     boolean isFollowing,
+    boolean isFollowedBy,
     boolean isOwnProfile
 ) {}

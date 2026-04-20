@@ -41,10 +41,12 @@ public class UserService {
         long followingCount = followRepository.countByFollowerId(userId);
 
         boolean isFollowing = false;
+        boolean isFollowedBy = false;
         boolean isOwnProfile = false;
 
         if (currentUser != null) {
             isFollowing = followRepository.existsByFollowerIdAndFollowingId(currentUser.getId(), userId);
+            isFollowedBy = followRepository.existsByFollowerIdAndFollowingId(userId, currentUser.getId());
             isOwnProfile = currentUser.getId().equals(userId);
         }
 
@@ -61,6 +63,7 @@ public class UserService {
                 followersCount,
                 followingCount,
                 isFollowing,
+                isFollowedBy,
                 isOwnProfile
         );
     }
@@ -192,6 +195,7 @@ public class UserService {
 
     private com.icpconnect.backend.dto.UserSummaryDTO mapToSummary(User user, User currentUser) {
         boolean isFollowing = currentUser != null && followRepository.existsByFollowerIdAndFollowingId(currentUser.getId(), user.getId());
+        boolean isFollowedBy = currentUser != null && followRepository.existsByFollowerIdAndFollowingId(user.getId(), currentUser.getId());
         boolean isOwnProfile = currentUser != null && currentUser.getId().equals(user.getId());
         return new com.icpconnect.backend.dto.UserSummaryDTO(
                 user.getId(),
@@ -199,11 +203,29 @@ public class UserService {
                 user.getUserName(),
                 user.getProfileImageUrl(),
                 isFollowing,
+                isFollowedBy,
                 isOwnProfile,
                 user.getBio(),
                 user.getProgram(),
                 user.getYear(),
                 user.getSection()
         );
+    }
+
+    public java.util.List<com.icpconnect.backend.dto.UserSummaryDTO> getMutualConnections(User currentUser) {
+        // Get users I follow
+        java.util.List<Follow> myFollowing = followRepository.findByFollowerId(currentUser.getId());
+        
+        return myFollowing.stream()
+                .filter(f -> followRepository.existsByFollowerIdAndFollowingId(
+                        f.getFollowing().getId(), currentUser.getId())) // they also follow me
+                .map(f -> {
+                    User u = f.getFollowing();
+                    return new com.icpconnect.backend.dto.UserSummaryDTO(
+                            u.getId(), u.getFullName(), u.getUserName(),
+                            u.getProfileImageUrl(), true, true,
+                            false, u.getBio(), u.getProgram(), u.getYear(), u.getSection()
+                    );
+                }).toList();
     }
 }

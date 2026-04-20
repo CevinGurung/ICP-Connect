@@ -70,4 +70,10 @@ public class UserController {
             @RequestParam(defaultValue = "9") int size) {
         return ResponseEntity.ok(userService.getRecommendedUsers(principal.getUser(), page, size));
     }
+
+    @GetMapping("/connections")
+    public ResponseEntity<java.util.List<com.icpconnect.backend.dto.UserSummaryDTO>> getMutualConnections(
+            @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
+        return ResponseEntity.ok(userService.getMutualConnections(principal.getUser()));
+    }
 }

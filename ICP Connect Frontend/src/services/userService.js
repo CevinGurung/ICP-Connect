@@ -48,3 +48,8 @@ export const getRecommendations = async (page = 0, size = 9) => {
   const response = await api.get(`/api/users/recommendations?page=${page}&size=${size}`);
   return response.data;
 };
+
+export const getMutualConnections = async () => {
+  const response = await api.get("/api/users/connections");
+  return response.data;
+};

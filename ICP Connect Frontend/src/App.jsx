@@ -12,6 +12,7 @@ import { isLoggedIn } from "./auth/auth.js";
 import "./App.css";
 
 const Connections = lazy(() => import("./pages/Connections.jsx"));
+const Messages = lazy(() => import("./pages/Messages.jsx"));
 
 const NotificationContext = createContext(null);
 
@@ -119,6 +120,14 @@ export default function App() {
                 }
               />
 
+              <Route
+                path="/messages"
+                element={
+                  <ProtectedRoute>
+                    <Messages />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/payment-success"
                 element={

@@ -30,6 +30,7 @@ import { useNotification } from "../App.jsx";
 import { getUserProfile, toggleFollow, updateProfile, getUserPosts, getFollowers, getFollowing } from "../services/userService";
 import { toggleLike, getComments, addComment, updateComment, deleteComment, sharePost } from "../services/postService";
 import { getUserInfo } from "../auth/auth";
+import FollowButton from "../components/FollowButton";
 import postService from "../services/postService";
 import PeopleListModal from "../components/PeopleListModal";
 
@@ -575,17 +576,11 @@ export default function Profile() {
                     <Edit3 size={16} /> Edit Profile
                   </button>
                 ) : (
-                  <button 
-                    className={`btn follow-btn ${profile.isFollowing ? 'following' : 'btn-primary'}`} 
-                    onClick={handleFollowToggle}
-                    disabled={followLoading}
-                  >
-                    {profile.isFollowing ? (
-                        <span className="following-text"><UserCheck size={16} /> Following</span>
-                    ) : (
-                        <><UserPlus size={16} /> Follow</>
-                    )}
-                  </button>
+                  <FollowButton
+                    isFollowing={profile.isFollowing}
+                    isFollowedBy={profile.isFollowedBy}
+                    onToggle={handleFollowToggle}
+                  />
                 )}
               </div>
             </div>

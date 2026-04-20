@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import FollowButton from './FollowButton';
 
 const PeopleListModal = ({ isOpen, onClose, title, data, loading, onToggleFollow, API_BASE, navigate }) => {
   if (!isOpen) return null;
@@ -33,12 +34,11 @@ const PeopleListModal = ({ isOpen, onClose, title, data, loading, onToggleFollow
                   </div>
                 </div>
                 {!user.isOwnProfile && (
-                  <button 
-                    className={`btn btn-sm ${user.isFollowing ? 'following-row-btn' : 'btn-primary'}`}
-                    onClick={() => onToggleFollow(user)}
-                  >
-                    {user.isFollowing ? "Following" : "Follow"}
-                  </button>
+                  <FollowButton
+                    isFollowing={user.isFollowing}
+                    isFollowedBy={user.isFollowedBy}
+                    onToggle={() => onToggleFollow(user)}
+                  />
                 )}
               </div>
             ))
