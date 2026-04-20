@@ -1,5 +1,6 @@
 package com.icpconnect.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -49,4 +50,8 @@ public class Post {
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PostMedia> media = new ArrayList<>();
+
+    @Transient
+    @JsonProperty("isLiked")
+    private boolean isLiked = false;
 }

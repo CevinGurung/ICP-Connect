@@ -1,8 +1,11 @@
 package com.icpconnect.backend.controller;
 
+import com.icpconnect.backend.dto.LikedUserDTO;
 import com.icpconnect.backend.entity.Post;
 import com.icpconnect.backend.entity.User;
 import com.icpconnect.backend.service.PostService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -30,15 +33,33 @@ public class PostController {
         return ResponseEntity.ok(post);
     }
     @GetMapping("/feed")
-    public ResponseEntity<List<Post>> getFeed() {
-        List<Post> feed = postService.getFeed();
+    public ResponseEntity<List<Post>> getFeed(@AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
+        Long userId = (principal != null) ? principal.getUser().getId() : null;
+        List<Post> feed = postService.getFeed(userId);
         return ResponseEntity.ok(feed);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Post> getPostById(@PathVariable Long id) {
-        Post post = postService.getPostById(id);
+    public ResponseEntity<Post> getPostById(@PathVariable Long id, @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
+        Long userId = (principal != null) ? principal.getUser().getId() : null;
+        Post post = postService.getPostById(id, userId);
         return ResponseEntity.ok(post);
+    }
+
+    @PostMapping("/{id}/like")
+    public ResponseEntity<Post> toggleLike(@PathVariable Long id, @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
+        Post post = postService.toggleLike(id, principal.getUser().getId());
+        return ResponseEntity.ok(post);
+    }
+
+    @GetMapping("/{id}/likes")
+    public ResponseEntity<Page<LikedUserDTO>> getPostLikes(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Page<LikedUserDTO> likes = postService.getPostLikes(id, PageRequest.of(page, size));
+        return ResponseEntity.ok(likes);
     }
 
     @PutMapping("/{id}")

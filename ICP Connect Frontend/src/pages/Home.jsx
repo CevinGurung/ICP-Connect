@@ -43,6 +43,15 @@ export default function Home() {
   const [editMedia, setEditMedia] = useState([]); // Array of { id, url, type, file, isExisting }
   const [editMediaType, setEditMediaType] = useState(null);
   const [removedMediaIds, setRemovedMediaIds] = useState([]);
+  const [likingIds, setLikingIds] = useState(new Set()); // Track in-flight like requests
+  
+  // Likes List States
+  const [isLikesListOpen, setIsLikesListOpen] = useState(false);
+  const [likingUsers, setLikingUsers] = useState([]);
+  const [likesListPage, setLikesListPage] = useState(0);
+  const [likesListHasMore, setLikesListHasMore] = useState(false);
+  const [likesListLoading, setLikesListLoading] = useState(false);
+  const [likesListPostId, setLikesListPostId] = useState(null);
   
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
@@ -84,8 +93,8 @@ export default function Home() {
         setSelectedPost(post);
         setIsDetailOpen(true);
       } catch (err) {
-        // If it's a 401, the interceptor will handle the redirect
-        if (err.response?.status !== 401) {
+        // If it's a 401, the interceptor will handle the refresh/redirect
+        if (!err.isHandled) {
           showToast("error", "Post not found");
           navigate("/");
         }
@@ -100,7 +109,7 @@ export default function Home() {
       setPosts(data);
     } catch (error) {
       // If it's a 401, the interceptor will handle the refresh/redirect
-      if (error.response?.status !== 401) {
+      if (!error.isHandled) {
         showToast("error", "Failed to load feed");
       }
     } finally {
@@ -185,8 +194,10 @@ export default function Home() {
       // Refresh feed
       fetchFeed();
     } catch (error) {
-      const msg = error?.response?.data?.message || "Failed to create post";
-      showToast("error", msg);
+      if (!error.isHandled) {
+        const msg = error?.response?.data?.message || "Failed to create post";
+        showToast("error", msg);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -201,7 +212,9 @@ export default function Home() {
       setIsDeleteConfirmOpen(false);
       setSelectedPost(null);
     } catch (error) {
-      showToast("error", "Failed to delete post");
+      if (!error.isHandled) {
+        showToast("error", "Failed to delete post");
+      }
     }
   };
 
@@ -229,7 +242,9 @@ export default function Home() {
       setIsEditOpen(false);
       setSelectedPost(null);
     } catch (error) {
-      showToast("error", "Failed to update post");
+      if (!error.isHandled) {
+        showToast("error", "Failed to update post");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -285,6 +300,85 @@ export default function Home() {
       showToast("success", "Link copied to clipboard!");
     } catch (err) {
       showToast("error", "Failed to copy link");
+    }
+  };
+
+  const handleLike = async (e, post) => {
+    e.stopPropagation();
+    if (likingIds.has(post.id)) return; // Prevent rapid clicking
+
+    // Optimistic UI Update
+    const originalPosts = [...posts];
+    const originalSelectedPost = selectedPost ? { ...selectedPost } : null;
+
+    const updatePostState = (p) => {
+      if (p.id === post.id) {
+        const isCurrentlyLiked = p.isLiked;
+        return {
+          ...p,
+          isLiked: !isCurrentlyLiked,
+          likeCount: isCurrentlyLiked ? (p.likeCount - 1) : (p.likeCount + 1)
+        };
+      }
+      return p;
+    };
+
+    setPosts(prev => prev.map(updatePostState));
+    if (selectedPost && selectedPost.id === post.id) {
+      setSelectedPost(prev => updatePostState(prev));
+    }
+
+    setLikingIds(prev => new Set(prev).add(post.id));
+
+    try {
+      const updatedPost = await postService.likePost(post.id);
+      // Sync with server response
+      setPosts(prev => prev.map(p => p.id === post.id ? updatedPost : p));
+      if (selectedPost && selectedPost.id === post.id) {
+        setSelectedPost(updatedPost);
+      }
+    } catch (err) {
+      // Revert on error
+      if (!err.isHandled) {
+        setPosts(originalPosts);
+        if (originalSelectedPost) setSelectedPost(originalSelectedPost);
+        showToast("error", "Failed to update like");
+      }
+    } finally {
+      setLikingIds(prev => {
+        const next = new Set(prev);
+        next.delete(post.id);
+        return next;
+      });
+    }
+  };
+
+  const openLikesList = (e, postId) => {
+    e.stopPropagation();
+    setLikesListPostId(postId);
+    setLikingUsers([]);
+    setLikesListPage(0);
+    setIsLikesListOpen(true);
+    fetchLikes(postId, 0);
+  };
+
+  const fetchLikes = async (postId, page) => {
+    try {
+      setLikesListLoading(true);
+      const data = await postService.getPostLikes(postId, page);
+      setLikingUsers(prev => page === 0 ? data.content : [...prev, ...data.content]);
+      setLikesListHasMore(!data.last);
+      setLikesListPage(page);
+    } catch (err) {
+      if (!err.isHandled) showToast("error", "Failed to load likes");
+    } finally {
+      setLikesListLoading(false);
+    }
+  };
+
+  const loadMoreLikes = () => {
+    if (!likesListLoading && likesListHasMore) {
+      fetchLikes(likesListPostId, likesListPage + 1);
     }
   };
 
@@ -537,12 +631,25 @@ export default function Home() {
                   )}
 
                   <div className="post-stats">
-                    <span className="stat-pill"><ThumbsUp size={14} /> {post.likeCount || 0}</span>
+                    <span 
+                      className="stat-pill clickable" 
+                      onClick={(e) => openLikesList(e, post.id)}
+                      title="View Likers"
+                    >
+                      <ThumbsUp size={14} /> {post.likeCount || 0}
+                    </span>
                     <span className="stat-pill"><MessageSquare size={14} /> {post.commentCount || 0} comments</span>
                   </div>
 
                   <div className="post-footer">
-                    <button className="footer-btn"><ThumbsUp size={20} /> Like</button>
+                    <button 
+                      className={`footer-btn ${post.isLiked ? 'active' : ''}`} 
+                      onClick={(e) => handleLike(e, post)}
+                      disabled={likingIds.has(post.id)}
+                    >
+                      <ThumbsUp size={20} fill={post.isLiked ? "currentColor" : "none"} /> 
+                      {post.isLiked ? "Liked" : "Like"}
+                    </button>
                     <button className="footer-btn"><MessageSquare size={20} /> Comment</button>
                     <button className="footer-btn" onClick={(e) => handleShare(e, post)}><Share2 size={20} /> Share</button>
                   </div>
@@ -695,8 +802,10 @@ export default function Home() {
         .stat-pill { font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
 
         .post-footer { display: flex; padding: 4px; }
-        .footer-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: none; color: var(--text-secondary); font-size: 14px; font-weight: 600; padding: 12px; border-radius: 4px; cursor: pointer; }
-        .footer-btn:hover { background: rgba(255,255,255, 0.05); color: var(--primary); }
+        .footer-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; border: none; color: var(--text-secondary); font-size: 14px; font-weight: 600; padding: 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+        .footer-btn:hover:not(:disabled) { background: rgba(255,255,255, 0.05); color: var(--primary); }
+        .footer-btn.active { color: var(--primary); }
+        .footer-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
         .empty-feed { text-align: center; padding: 48px 16px; color: var(--text-muted); }
         .empty-icon { margin-bottom: 16px; opacity: 0.5; }
@@ -807,10 +916,20 @@ export default function Home() {
         }
         .edit-textarea:focus { border-color: var(--primary); }
         
-        .btn-error { background: var(--error); color: white; }
-        .btn-error:hover { opacity: 0.9; }
         .modal-close-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; }
         .modal-close-btn:hover { color: var(--text-primary); }
+
+        .stat-pill.clickable { cursor: pointer; }
+        .stat-pill.clickable:hover { color: var(--primary); text-decoration: underline; }
+
+        .likers-list { display: flex; flex-direction: column; }
+        .liker-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); transition: background 0.2s; }
+        .liker-item:last-child { border-bottom: none; }
+        .liker-item:hover { background: rgba(255, 255, 255, 0.05); }
+        .liker-avatar { width: 40px; height: 40px; background: #38434F; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--primary); }
+        .liker-info { flex: 1; }
+        .liker-name { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .liker-details { margin: 2px 0 0; font-size: 12px; color: var(--text-secondary); }
       `}</style>
       {/* Detail Modal */}
       {isDetailOpen && selectedPost && (
@@ -853,7 +972,9 @@ export default function Home() {
                 <div className="detail-text" style={{ fontSize: '16px', marginBottom: '20px' }}>{selectedPost.content}</div>
                 
                 <div className="detail-stats" style={{ padding: '12px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', display: 'flex', gap: '16px' }}>
-                  <span className="stat-pill"><ThumbsUp size={14} /> {selectedPost.likeCount} Likes</span>
+                  <span className="stat-pill clickable" onClick={(e) => openLikesList(e, selectedPost.id)}>
+                    <ThumbsUp size={14} /> {selectedPost.likeCount} Likes
+                  </span>
                   <span className="stat-pill"><MessageSquare size={14} /> {selectedPost.commentCount} Comments</span>
                 </div>
 
@@ -868,9 +989,17 @@ export default function Home() {
 
               <div className="info-footer">
                 <div className="post-actions" style={{ display: 'flex', gap: '8px' }}>
-                  <button className="footer-btn" style={{ flex: 1 }}><ThumbsUp size={18} /> Like</button>
+                  <button 
+                    className={`footer-btn ${selectedPost.isLiked ? 'active' : ''}`} 
+                    style={{ flex: 1 }}
+                    onClick={(e) => handleLike(e, selectedPost)}
+                    disabled={likingIds.has(selectedPost.id)}
+                  >
+                    <ThumbsUp size={18} fill={selectedPost.isLiked ? "currentColor" : "none"} /> 
+                    {selectedPost.isLiked ? "Liked" : "Like"}
+                  </button>
                   <button className="footer-btn" style={{ flex: 1 }}><MessageSquare size={18} /> Comment</button>
-                  <button className="footer-btn" style={{ flex: 1 }}><Share2 size={18} /> Share</button>
+                  <button className="footer-btn" style={{ flex: 1 }} onClick={(e) => handleShare(e, selectedPost)}><Share2 size={18} /> Share</button>
                 </div>
               </div>
             </div>
@@ -952,6 +1081,48 @@ export default function Home() {
             <div className="modal-actions">
               <button className="btn btn-ghost" onClick={() => setIsDeleteConfirmOpen(false)}>No, Keep it</button>
               <button className="btn btn-error" onClick={handleDeletePost}>Yes, Delete Post</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Likers List Modal */}
+      {isLikesListOpen && (
+        <div className="modal-overlay" onClick={() => setIsLikesListOpen(false)}>
+          <div className="modal-content confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ThumbsUp size={18} color="var(--primary)" />
+                <h3 style={{ margin: 0, fontSize: '1rem' }}>People who liked</h3>
+              </div>
+              <button className="modal-close-btn" onClick={() => setIsLikesListOpen(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body likers-list" style={{ padding: 0, maxHeight: '500px', overflowY: 'auto' }}>
+              {likingUsers.map((user) => (
+                <div key={user.id} className="liker-item">
+                  <div className="liker-avatar">{user.fullName[0]}</div>
+                  <div className="liker-info">
+                    <p className="liker-name">{user.fullName}</p>
+                    <p className="liker-details">{user.program} · {user.year} Year</p>
+                  </div>
+                </div>
+              ))}
+              
+              {likesListLoading && (
+                <div style={{ padding: '20px', textAlign: 'center' }}>
+                  <div className="spinner" style={{ width: '24px', height: '24px', margin: '0 auto' }}></div>
+                </div>
+              )}
+
+              {!likesListLoading && likingUsers.length === 0 && (
+                <p style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>No likes yet.</p>
+              )}
+
+              {!likesListLoading && likesListHasMore && (
+                <button className="btn btn-ghost" style={{ width: '100%', borderRadius: 0, padding: '12px' }} onClick={loadMoreLikes}>
+                  Load More
+                </button>
+              )}
             </div>
           </div>
         </div>

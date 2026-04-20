@@ -229,10 +229,10 @@ export default function Register() {
                   type="button"
                   className="btn btn-secondary"
                   disabled={resendTimer > 0 || loading}
-                  onClick={() => handleRequestOtp()}
-                  style={{ width: '100%' }}
+                  onClick={(e) => handleRequestOtp(e)}
+                  style={{ width: '100%', cursor: resendTimer > 0 ? 'not-allowed' : 'pointer' }}
                 >
-                  {resendTimer > 0 ? `Resend code in ${resendTimer}s` : "Resend OTP"}
+                  {resendTimer > 0 ? `Wait ${resendTimer}s to resend` : "Resend OTP Code"}
                 </button>
               </div>
             </form>

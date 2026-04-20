@@ -30,6 +30,18 @@ const postService = {
   deletePost: async (postId) => {
     const response = await api.delete(`/api/posts/${postId}`);
     return response.data;
+  },
+  
+  likePost: async (postId) => {
+    const response = await api.post(`/api/posts/${postId}/like`);
+    return response.data;
+  },
+
+  getPostLikes: async (postId, page = 0, size = 10) => {
+    const response = await api.get(`/api/posts/${postId}/likes`, {
+      params: { page, size }
+    });
+    return response.data;
   }
 };
 

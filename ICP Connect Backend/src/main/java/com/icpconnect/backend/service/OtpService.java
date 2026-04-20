@@ -29,7 +29,7 @@ public class OtpService {
         if (existing != null) {
             long secondsSinceLast = java.time.Duration.between(existing.getLastSentAt(), LocalDateTime.now()).getSeconds();
             if (secondsSinceLast < 30) {
-                throw new IllegalArgumentException("Please wait " + (30 - secondsSinceLast) + "s before requesting a new OTP.");
+                throw new IllegalArgumentException("Too soon! Please wait another " + (30 - secondsSinceLast) + "s before requesting a new OTP.");
             }
         }
 

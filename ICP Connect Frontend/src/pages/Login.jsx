@@ -66,7 +66,9 @@ export default function Login() {
 
   const handleResend = () => {
     if (resendTimer > 0) return;
-    onSubmit();
+    setForm(prev => ({ ...prev, otp: "" }));
+    // Small timeout to ensure state is updated before submission
+    setTimeout(() => onSubmit(), 0);
   };
 
   return (

@@ -1,12 +1,17 @@
 package com.icpconnect.backend.service;
 
+import com.icpconnect.backend.dto.LikedUserDTO;
 import com.icpconnect.backend.entity.Post;
+import com.icpconnect.backend.entity.PostLike;
 import com.icpconnect.backend.entity.PostMedia;
 import com.icpconnect.backend.entity.User;
+import com.icpconnect.backend.repository.PostLikeRepository;
 import com.icpconnect.backend.repository.PostMediaRepository;
 import com.icpconnect.backend.repository.PostRepository;
 import com.icpconnect.backend.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,14 +28,17 @@ public class PostService {
     private final PostRepository postRepository;
     private final PostMediaRepository postMediaRepository;
     private final UserRepository userRepository;
+    private final PostLikeRepository postLikeRepository;
     private final Path root = Paths.get("uploads/posts");
 
     public PostService(PostRepository postRepository, 
                        PostMediaRepository postMediaRepository, 
-                       UserRepository userRepository) {
+                       UserRepository userRepository,
+                       PostLikeRepository postLikeRepository) {
         this.postRepository = postRepository;
         this.postMediaRepository = postMediaRepository;
         this.userRepository = userRepository;
+        this.postLikeRepository = postLikeRepository;
     }
 
     @PostConstruct
@@ -81,14 +89,58 @@ public class PostService {
         return savedPost;
     }
 
-    public List<Post> getFeed() {
-        return postRepository.findAllActivePosts();
+    public List<Post> getFeed(Long currentUserId) {
+        List<Post> posts = postRepository.findAllActivePosts();
+        if (currentUserId != null) {
+            for (Post post : posts) {
+                post.setLiked(postLikeRepository.existsByPostIdAndUserId(post.getId(), currentUserId));
+            }
+        }
+        return posts;
     }
     
-    public Post getPostById(Long id) {
-        return postRepository.findById(id)
+    public Post getPostById(Long id, Long currentUserId) {
+        Post post = postRepository.findById(id)
                 .filter(p -> !p.isDeleted())
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        if (currentUserId != null) {
+            post.setLiked(postLikeRepository.existsByPostIdAndUserId(post.getId(), currentUserId));
+        }
+        return post;
+    }
+
+    public Page<LikedUserDTO> getPostLikes(Long postId, Pageable pageable) {
+        return postLikeRepository.findByPostIdOrderByCreatedAtDesc(postId, pageable)
+                .map(like -> new LikedUserDTO(
+                        like.getUser().getId(),
+                        like.getUser().getFullName(),
+                        like.getUser().getProgram(),
+                        like.getUser().getYear()
+                ));
+    }
+
+    @Transactional
+    public Post toggleLike(Long postId, Long userId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        postLikeRepository.findByPostAndUser(post, user).ifPresentOrElse(
+            like -> {
+                postLikeRepository.delete(like);
+                postRepository.decrementLikeCount(postId);
+                post.setLikeCount(post.getLikeCount() - 1);
+                post.setLiked(false);
+            },
+            () -> {
+                postLikeRepository.save(new PostLike(user, post));
+                postRepository.incrementLikeCount(postId);
+                post.setLikeCount(post.getLikeCount() + 1);
+                post.setLiked(true);
+            }
+        );
+        return post;
     }
 
     @Transactional
