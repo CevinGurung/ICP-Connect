@@ -52,6 +52,15 @@ export default function Home() {
   const [likesListHasMore, setLikesListHasMore] = useState(false);
   const [likesListLoading, setLikesListLoading] = useState(false);
   const [likesListPostId, setLikesListPostId] = useState(null);
+
+  // Comment States
+  const [comments, setComments] = useState([]);
+  const [commentPage, setCommentPage] = useState(0);
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentHasMore, setCommentHasMore] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editCommentContent, setEditCommentContent] = useState("");
   
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
@@ -77,6 +86,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (isDetailOpen || isLikesListOpen || isDeleteConfirmOpen || isEditOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => { document.body.style.overflow = "unset"; };
+  }, [isDetailOpen, isLikesListOpen, isDeleteConfirmOpen, isEditOpen]);
+
+  useEffect(() => {
     if (postId && posts.length > 0) {
       handleDeepLink(postId);
     }
@@ -99,6 +117,75 @@ export default function Home() {
           navigate("/");
         }
       }
+    }
+    // Load comments for the post
+    fetchComments(id, 0);
+  };
+
+  const fetchComments = async (postId, page) => {
+    try {
+      setCommentLoading(true);
+      const data = await postService.getComments(postId, page);
+      setComments(prev => page === 0 ? data.content : [...prev, ...data.content]);
+      setCommentHasMore(!data.last);
+      setCommentPage(page);
+    } catch (err) {
+      if (!err.isHandled) showToast("error", "Failed to load comments");
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
+  const loadMoreComments = () => {
+    if (!commentLoading && commentHasMore) {
+      fetchComments(selectedPost.id, commentPage + 1);
+    }
+  };
+
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim() || !selectedPost) return;
+
+    try {
+      setCommentLoading(true);
+      const comment = await postService.addComment(selectedPost.id, newComment);
+      setComments(prev => [...prev, comment]);
+      setNewComment("");
+      
+      // Update local counts
+      const updatePost = (p) => p.id === selectedPost.id ? { ...p, commentCount: p.commentCount + 1 } : p;
+      setPosts(prev => prev.map(updatePost));
+      setSelectedPost(prev => updatePost(prev));
+    } catch (err) {
+      if (!err.isHandled) showToast("error", "Failed to post comment");
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
+  const handleCommentDelete = async (commentId) => {
+    try {
+      await postService.deleteComment(commentId);
+      setComments(prev => prev.filter(c => c.id !== commentId));
+      
+      // Update local counts
+      const updatePost = (p) => p.id === selectedPost.id ? { ...p, commentCount: Math.max(0, p.commentCount - 1) } : p;
+      setPosts(prev => prev.map(updatePost));
+      setSelectedPost(prev => updatePost(prev));
+      showToast("success", "Comment deleted");
+    } catch (err) {
+      if (!err.isHandled) showToast("error", "Failed to delete comment");
+    }
+  };
+
+  const handleCommentEdit = async (commentId, content) => {
+    try {
+      const updated = await postService.updateComment(commentId, content);
+      setComments(prev => prev.map(c => c.id === commentId ? updated : c));
+      setEditingCommentId(null);
+      setEditCommentContent("");
+    } catch (err) {
+      if (!err.isHandled) showToast("error", "Failed to edit comment");
     }
   };
 
@@ -283,6 +370,9 @@ export default function Home() {
   const openDetailView = (post) => {
     setSelectedPost(post);
     setIsDetailOpen(true);
+    setComments([]);
+    setCommentPage(0);
+    fetchComments(post.id, 0);
     navigate(`/post/${post.id}`);
   };
 
@@ -434,6 +524,11 @@ export default function Home() {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + " at " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const formatCommentDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + " at " + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const handleTextareaInput = (e) => {
@@ -930,6 +1025,34 @@ export default function Home() {
         .liker-info { flex: 1; }
         .liker-name { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); }
         .liker-details { margin: 2px 0 0; font-size: 12px; color: var(--text-secondary); }
+
+        /* Comment Styles */
+        .comment-item { display: flex; gap: 10px; margin-bottom: 16px; align-items: flex-start; }
+        .comment-avatar { width: 32px; height: 32px; background: var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--primary); font-weight: bold; flex-shrink: 0; }
+        .comment-content-wrap { flex: 1; }
+        .comment-bubble { background: #1a222a; padding: 10px 12px; border-radius: 0 12px 12px 12px; border: 1px solid var(--border); }
+        .comment-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .comment-author { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+        .comment-time { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+        .comment-text { margin: 0; font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+        .comment-actions { display: flex; gap: 12px; margin-top: 4px; padding-left: 4px; }
+        .comment-actions button { background: none; border: none; font-size: 11px; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; gap: 4px; }
+        .comment-actions button:hover { color: var(--primary); }
+        
+        .comment-input-form { display: flex; gap: 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); }
+        .comment-avatar-small { width: 32px; height: 32px; background: var(--primary); color: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; flex-shrink: 0; }
+        .comment-input-wrap { flex: 1; display: flex; background: #1a222a; border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; align-items: center; }
+        .comment-input-wrap input { flex: 1; background: transparent; border: none; color: var(--text-primary); padding: 8px 0; font-size: 14px; outline: none; }
+        .comment-input-wrap button { background: transparent; border: none; color: var(--primary); cursor: pointer; padding: 4px; display: flex; align-items: center; }
+        .comment-input-wrap button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .load-more-comments { margin: 8px auto; display: block; font-size: 13px; }
+        
+        .edit-comment-form textarea { width: 100%; background: #0f151b; border: 1px solid var(--primary); border-radius: 4px; color: var(--text-primary); padding: 8px; font-size: 14px; min-height: 60px; margin-bottom: 8px; resize: none; outline: none; }
+        .edit-actions { display: flex; justify-content: flex-end; gap: 8px; }
+        .edit-actions button { padding: 4px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+        .edit-actions button:first-child { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+        .edit-actions button:last-child { background: var(--primary); border: none; color: white; }
       `}</style>
       {/* Detail Modal */}
       {isDetailOpen && selectedPost && (
@@ -948,9 +1071,6 @@ export default function Home() {
                   <div className="empty-media-placeholder">No Media</div>
                 )}
               </div>
-              <button className="modal-close-btn" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10 }} onClick={closeDetailView}>
-                <X size={28} />
-              </button>
             </div>
 
             {/* Right Side: Info & Comments */}
@@ -978,16 +1098,95 @@ export default function Home() {
                   <span className="stat-pill"><MessageSquare size={14} /> {selectedPost.commentCount} Comments</span>
                 </div>
 
-                <div className="comments-section" style={{ marginTop: '20px' }}>
+                <div className="comments-section" style={{ marginTop: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <h5 style={{ margin: '0 0 16px', color: 'var(--text-secondary)' }}>Comments</h5>
-                  <div className="empty-comments" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
-                    <MessageSquare size={32} style={{ opacity: 0.2, marginBottom: '12px' }} />
-                    <p>No comments yet. Be the first to start the conversation!</p>
+                  
+                  <div className="comments-list" style={{ flex: 1, overflowY: 'auto', marginBottom: '16px' }}>
+                    {comments.length > 0 ? (
+                      <>
+                        {comments.map((comment) => (
+                          <div key={comment.id} className="comment-item">
+                            <div className="comment-avatar">{comment.fullName[0]}</div>
+                            <div className="comment-content-wrap">
+                              <div className="comment-bubble">
+                                <div className="comment-header">
+                                  <span className="comment-author">{comment.fullName}</span>
+                                  <span className="comment-time">
+                                    <Clock size={10} /> {formatCommentDate(comment.createdAt)}
+                                    {comment.updatedAt && new Date(comment.updatedAt).getTime() > new Date(comment.createdAt).getTime() + 1000 && (
+                                      <span style={{ marginLeft: '4px', fontStyle: 'italic', opacity: 0.7 }}>(updated)</span>
+                                    )}
+                                  </span>
+                                </div>
+                                
+                                {editingCommentId === comment.id ? (
+                                  <div className="edit-comment-form">
+                                    <textarea 
+                                      value={editCommentContent} 
+                                      onChange={(e) => setEditCommentContent(e.target.value)}
+                                      autoFocus
+                                    />
+                                    <div className="edit-actions">
+                                      <button onClick={() => setEditingCommentId(null)}>Cancel</button>
+                                      <button onClick={() => handleCommentEdit(comment.id, editCommentContent)}>Save</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="comment-text">{comment.content}</p>
+                                )}
+                              </div>
+                              
+                              {!editingCommentId && currentUser && currentUser.userId === comment.userId && (
+                                <div className="comment-actions">
+                                  <button onClick={() => {
+                                    setEditingCommentId(comment.id);
+                                    setEditCommentContent(comment.content);
+                                  }}><Edit size={12} /> Edit</button>
+                                  <button onClick={() => handleCommentDelete(comment.id)}><Trash2 size={12} /> Delete</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {commentHasMore && (
+                          <button className="btn btn-ghost load-more-comments" onClick={loadMoreComments} disabled={commentLoading}>
+                            {commentLoading ? "Loading..." : "Load more comments"}
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <div className="empty-comments" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                        <MessageSquare size={32} style={{ opacity: 0.2, marginBottom: '12px' }} />
+                        <p>No comments yet. Be the first to start the conversation!</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="info-footer">
+              <div className="detail-fixed-footer" style={{ 
+                padding: '16px', 
+                background: 'var(--card)', 
+                borderTop: '1px solid var(--border)',
+                zIndex: 5
+              }}>
+                {/* Comment Input Sticky above actions */}
+                <form className="comment-input-form" onSubmit={handleCommentSubmit} style={{ marginBottom: '12px', borderTop: 'none', padding: 0 }}>
+                  <div className="comment-avatar-small">{currentUser?.fullName[0]}</div>
+                  <div className="comment-input-wrap">
+                    <input 
+                      placeholder="Write a comment..." 
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      disabled={commentLoading}
+                    />
+                    <button type="submit" disabled={!newComment.trim() || commentLoading}>
+                      <Send size={16} />
+                    </button>
+                  </div>
+                </form>
+
+                <div className="info-footer" style={{ padding: 0 }}>
                 <div className="post-actions" style={{ display: 'flex', gap: '8px' }}>
                   <button 
                     className={`footer-btn ${selectedPost.isLiked ? 'active' : ''}`} 
@@ -1005,6 +1204,7 @@ export default function Home() {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* Edit Modal */}

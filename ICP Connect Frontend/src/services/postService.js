@@ -42,6 +42,29 @@ const postService = {
       params: { page, size }
     });
     return response.data;
+  },
+
+  // Comment Endpoints
+  getComments: async (postId, page = 0, size = 10) => {
+    const response = await api.get(`/api/posts/${postId}/comments`, {
+      params: { page, size }
+    });
+    return response.data;
+  },
+
+  addComment: async (postId, content) => {
+    const response = await api.post(`/api/posts/${postId}/comments`, { content });
+    return response.data;
+  },
+
+  updateComment: async (commentId, content) => {
+    const response = await api.put(`/api/comments/${commentId}`, { content });
+    return response.data;
+  },
+
+  deleteComment: async (commentId) => {
+    const response = await api.delete(`/api/comments/${commentId}`);
+    return response.data;
   }
 };
 
