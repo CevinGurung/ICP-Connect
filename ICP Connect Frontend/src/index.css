@@ -1,20 +1,26 @@
 :root {
   --bg: #0D1117;
-  --bg2: #161B22;
+  --bg-secondary: #161B22;
   --card: #1C2128;
-  --card-border: #30363D;
+  --border: #30363D;
+  --card-border: #30363D; /* Backward compatibility */
   
-  --text: #E6EDF3;
+  --text-primary: #E6EDF3;
+  --text: #E6EDF3; /* Backward compatibility */
   --text-secondary: #8B949E;
-  --muted: #6E7681;
+  --text-muted: #6E7681;
+  --muted: #6E7681; /* Backward compatibility */
 
   --primary: #58A6FF;
   --success: #3FB950;
   --error: #F85149;
   --warning: #D29922;
 
-  --radius: 12px;
-  --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  
+  --nav-height: 64px;
 }
 
 * { box-sizing: border-box; }
@@ -25,14 +31,87 @@ html, body {
 
 body {
   margin: 0;
-  color: var(--text);
+  color: var(--text-primary);
   background-color: var(--bg);
-  background-image: 
-    radial-gradient(circle at 50% -20%, rgba(88, 166, 255, 0.1), transparent 80%),
-    linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
   background-attachment: fixed;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 1128px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  overflow: hidden;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  gap: 8px;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+.btn-primary:hover {
+  background: #4a94e8;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.feed-grid {
+  display: grid;
+  grid-template-columns: 225px 1fr 300px;
+  gap: 24px;
+  padding-top: 24px;
+}
+
+@media (max-width: 992px) {
+  .feed-grid {
+    grid-template-columns: 1fr;
+  }
+  .left-col, .right-col {
+    display: none;
+  }
 }
 
 a {
