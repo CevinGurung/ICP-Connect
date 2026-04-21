@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { X, Heart, Landmark, MessageSquare, Send } from "lucide-react";
 import { initiateDonation } from "../services/donationService";
-import { useNotification } from "../App";
+import { useNotification } from "../context/NotificationContext.jsx";
 
 export default function DonationModal({ isOpen, onClose }) {
   const [amount, setAmount] = useState("");

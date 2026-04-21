@@ -26,7 +26,7 @@ import {
   TrendingUp,
   PieChart
 } from "lucide-react";
-import { useNotification } from "../App.jsx";
+import { useNotification } from "../context/NotificationContext.jsx";
 import { getUserProfile, toggleFollow, updateProfile, getUserPosts, getFollowers, getFollowing } from "../services/userService";
 import { toggleLike, getComments, addComment, updateComment, deleteComment, sharePost } from "../services/postService";
 import { getUserInfo } from "../auth/auth";

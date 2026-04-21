@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getRecommendations, toggleFollow } from "../services/userService";
 import { getUserInfo } from "../auth/auth";
-import { useNotification } from "../App";
+import { useNotification } from "../context/NotificationContext.jsx";
 import { Users, UserPlus, UserCheck, MapPin, GraduationCap, Info } from "lucide-react";
 import FollowButton from "../components/FollowButton";
 

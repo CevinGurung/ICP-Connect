@@ -134,6 +134,13 @@ export default function Navbar() {
                   </NavLink>
                 ))}
                 
+                {userInfo?.role === 'ADMIN' && (
+                  <NavLink to="/admin" className="nav-item admin-link" title="Admin Dashboard">
+                    <LogOut size={24} style={{ transform: 'rotate(180deg)', color: '#58A6FF' }} />
+                    <span className="nav-item-label">Admin</span>
+                  </NavLink>
+                )}
+                
                 <button className="nav-item btn-logout" onClick={handleLogout} title="Logout">
                   <LogOut size={24} />
                   <span className="nav-item-label">Logout</span>

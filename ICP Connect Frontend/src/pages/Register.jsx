@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register as registerApi, sendOtp } from "../services/authService.js";
 import { setTokens } from "../auth/auth.js";
-import { useNotification } from "../App.jsx";
+import { useNotification } from "../context/NotificationContext.jsx";
 import { GraduationCap, BookOpen } from "lucide-react";
 
 export default function Register() {

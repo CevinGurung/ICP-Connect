@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { CheckCircle, Heart, Home, ArrowRight } from "lucide-react";
 import { confirmDonation } from "../services/donationService";
-import { useNotification } from "../App";
+import { useNotification } from "../context/NotificationContext.jsx";
 
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();

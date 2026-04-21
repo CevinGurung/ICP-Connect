@@ -24,7 +24,7 @@ import {
   Heart,
   Flag
 } from "lucide-react";
-import { useNotification } from "../App.jsx";
+import { useNotification } from "../context/NotificationContext.jsx";
 import DonationModal from "../components/DonationModal.jsx";
 import postService from "../services/postService.js";
 import { getUserInfo } from "../auth/auth.js";
@@ -88,6 +88,8 @@ export default function Home() {
   const videoInputRef = useRef(null);
   const editImageInputRef = useRef(null);
   const editVideoInputRef = useRef(null);
+
+  const isAdmin = currentUser?.role === "ADMIN";
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8848";
 
@@ -1033,18 +1035,22 @@ export default function Home() {
                   </div>
 
                   <div className="post-footer">
-                    <button 
-                      className={`footer-btn ${post.isLiked ? 'active' : ''}`} 
-                      onClick={(e) => handleLike(e, post)}
-                      disabled={likingIds.has(post.id)}
-                    >
-                      <ThumbsUp size={20} fill={post.isLiked ? "currentColor" : "none"} /> 
-                      {post.isLiked ? "Liked" : "Like"}
-                    </button>
-                    <button className="footer-btn" onClick={(e) => {
-                       e.stopPropagation();
-                       openDetailView(post);
-                    }}><MessageSquare size={20} /> Comment</button>
+                    {!isAdmin && (
+                      <button 
+                        className={`footer-btn ${post.isLiked ? 'active' : ''}`} 
+                        onClick={(e) => handleLike(e, post)}
+                        disabled={likingIds.has(post.id)}
+                      >
+                        <ThumbsUp size={20} fill={post.isLiked ? "currentColor" : "none"} /> 
+                        {post.isLiked ? "Liked" : "Like"}
+                      </button>
+                    )}
+                    {!isAdmin && (
+                      <button className="footer-btn" onClick={(e) => {
+                         e.stopPropagation();
+                         openDetailView(post);
+                      }}><MessageSquare size={20} /> Comment</button>
+                    )}
                     <button className="footer-btn" onClick={(e) => handleShare(e, post)}><Share2 size={20} /> Share</button>
                   </div>
                 </div>
@@ -1675,40 +1681,46 @@ export default function Home() {
                 borderTop: '1px solid var(--border)',
                 zIndex: 5
               }}>
-                {/* Comment Input Sticky above actions */}
-                <form className="comment-input-form" onSubmit={handleCommentSubmit} style={{ marginBottom: '12px', borderTop: 'none', padding: 0 }}>
-                  <div className="comment-avatar-small">
-                    {currentUser && currentUser.profilePicUrl ? (
-                      <img src={`${API_BASE}${currentUser.profilePicUrl}`} alt={currentUser.fullName} className="avatar-img" />
-                    ) : (
-                      currentUser?.fullName ? currentUser.fullName[0] : (currentUser?.sub ? currentUser.sub[0] : "U")
-                    )}
-                  </div>
-                  <div className="comment-input-wrap">
-                    <input 
-                      placeholder="Write a comment..." 
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      disabled={commentLoading}
-                    />
-                    <button type="submit" disabled={!newComment.trim() || commentLoading}>
-                      <Send size={16} />
-                    </button>
-                  </div>
-                </form>
+                {/* Comment Input Sticky above actions - Hidden for Adins */}
+                {!isAdmin && (
+                  <form className="comment-input-form" onSubmit={handleCommentSubmit} style={{ marginBottom: '12px', borderTop: 'none', padding: 0 }}>
+                    <div className="comment-avatar-small">
+                      {currentUser && currentUser.profilePicUrl ? (
+                        <img src={`${API_BASE}${currentUser.profilePicUrl}`} alt={currentUser.fullName} className="avatar-img" />
+                      ) : (
+                        currentUser?.fullName ? currentUser.fullName[0] : (currentUser?.sub ? currentUser.sub[0] : "U")
+                      )}
+                    </div>
+                    <div className="comment-input-wrap">
+                      <input 
+                        placeholder="Write a comment..." 
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        disabled={commentLoading}
+                      />
+                      <button type="submit" disabled={!newComment.trim() || commentLoading}>
+                        <Send size={16} />
+                      </button>
+                    </div>
+                  </form>
+                )}
 
                 <div className="info-footer" style={{ padding: 0 }}>
                 <div className="post-actions" style={{ display: 'flex', gap: '8px' }}>
-                  <button 
-                    className={`footer-btn ${selectedPost.isLiked ? 'active' : ''}`} 
-                    style={{ flex: 1 }}
-                    onClick={(e) => handleLike(e, selectedPost)}
-                    disabled={likingIds.has(selectedPost.id)}
-                  >
-                    <ThumbsUp size={18} fill={selectedPost.isLiked ? "currentColor" : "none"} /> 
-                    {selectedPost.isLiked ? "Liked" : "Like"}
-                  </button>
-                  <button className="footer-btn" style={{ flex: 1 }}><MessageSquare size={18} /> Comment</button>
+                  {!isAdmin && (
+                    <button 
+                      className={`footer-btn ${selectedPost.isLiked ? 'active' : ''}`} 
+                      style={{ flex: 1 }}
+                      onClick={(e) => handleLike(e, selectedPost)}
+                      disabled={likingIds.has(selectedPost.id)}
+                    >
+                      <ThumbsUp size={18} fill={selectedPost.isLiked ? "currentColor" : "none"} /> 
+                      {selectedPost.isLiked ? "Liked" : "Like"}
+                    </button>
+                  )}
+                  {!isAdmin && (
+                    <button className="footer-btn" style={{ flex: 1 }}><MessageSquare size={18} /> Comment</button>
+                  )}
                   <button className="footer-btn" style={{ flex: 1 }} onClick={(e) => handleShare(e, selectedPost)}><Share2 size={18} /> Share</button>
                 </div>
               </div>

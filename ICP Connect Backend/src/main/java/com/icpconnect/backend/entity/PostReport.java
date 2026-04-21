@@ -31,6 +31,9 @@ public class PostReport {
     @Column(length = 100)
     private String reason;
 
+    @Column(nullable = false, length = 20, columnDefinition = "varchar(20) default 'PENDING'")
+    private String status = "PENDING"; // PENDING, RESOLVED, IGNORED
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
