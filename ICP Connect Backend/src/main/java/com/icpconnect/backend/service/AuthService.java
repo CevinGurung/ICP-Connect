@@ -47,10 +47,11 @@ public class AuthService {
     /* ===================== REGISTER ===================== */
 
     public AuthResponse register(RegisterRequest request) {
+        String normalizedEmail = request.email().trim().toLowerCase();
         // Validate OTP using Cache
-        otpService.validateOtp(request.email(), request.otp());
+        otpService.validateOtp(normalizedEmail, request.otp());
 
-        if (!request.email().trim().endsWith("@icp.edu.np")) {
+        if (!normalizedEmail.endsWith("@icp.edu.np")) {
             throw new IllegalArgumentException("Registration is restricted to @icp.edu.np emails.");
         }
 
@@ -58,14 +59,12 @@ public class AuthService {
             throw new IllegalArgumentException("Password must be at least 8 characters long.");
         }
 
-        if (userRepository.existsByEmail(request.email())) {
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new IllegalArgumentException("Email already registered");
         }
 
         // Auto-detect role from email pattern
-        // Student emails have intake code: name.a23@icp.edu.np or name2.s23@icp.edu.np
-        // Teacher emails have NO intake code: name.surname@icp.edu.np
-        String localPart = request.email().split("@")[0];
+        String localPart = normalizedEmail.split("@")[0];
         boolean isTeacher = !localPart.matches(".*\\.[as]\\d{2}$");
 
         Role role = isTeacher ? Role.TEACHER : Role.STUDENT;
@@ -73,7 +72,7 @@ public class AuthService {
         User user = new User();
         user.setFullName(request.fullName());
         user.setUserName(request.userName());
-        user.setEmail(request.email());
+        user.setEmail(normalizedEmail);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setProgram(request.program());
         user.setYear(request.year());
@@ -100,7 +99,8 @@ public class AuthService {
     /* ===================== LOGIN ===================== */
 
     public AuthResponse login(AuthRequest request) {
-        User user = userRepository.findByEmail(request.email())
+        String normalizedEmail = request.email().trim().toLowerCase();
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new IllegalArgumentException("No account found with this email."));
 
         if (!user.isActive()) {

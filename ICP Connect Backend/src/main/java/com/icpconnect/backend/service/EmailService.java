@@ -37,8 +37,8 @@ public class EmailService {
                             This code will expire in <strong style="color: #E6EDF3;">5 minutes</strong>.
                         </p>
                         
-                        <div style="display: inline-block; background-color: #0D1117; padding: 16px 32px; font-size: 36px; font-weight: 700; letter-spacing: 12px; border-radius: 6px; border: 1px solid #30363D; color: #58A6FF; margin: 8px 0;">
-                            %s
+                        <div style="display: inline-block; background-color: #0D1117; padding: 12px 24px; border-radius: 8px; border: 1px solid #30363D; margin: 8px 0;">
+                            <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 42px; font-weight: 700; letter-spacing: 16px; color: #58A6FF; margin-right: -16px;">%s</span>
                         </div>
                     </div>
                     

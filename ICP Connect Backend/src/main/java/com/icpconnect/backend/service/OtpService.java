@@ -24,7 +24,10 @@ public class OtpService {
     }
 
     public void generateAndSendOtp(String email, String purpose) {
-        OtpDetails existing = otpCache.getIfPresent(email);
+        // Normalize email to prevent case-sensitive cache misses
+        String normalizedEmail = email.trim().toLowerCase();
+        
+        OtpDetails existing = otpCache.getIfPresent(normalizedEmail);
 
         if (existing != null) {
             long secondsSinceLast = java.time.Duration.between(existing.getLastSentAt(), LocalDateTime.now()).getSeconds();
@@ -37,31 +40,34 @@ public class OtpService {
         String newOtp = String.format("%06d", new Random().nextInt(1000000));
         
         OtpDetails details = new OtpDetails(newOtp, LocalDateTime.now());
-        otpCache.put(email, details);
+        otpCache.put(normalizedEmail, details);
 
-        emailService.sendOtpEmail(email, newOtp, purpose);
+        emailService.sendOtpEmail(normalizedEmail, newOtp, purpose);
     }
 
     public void validateOtp(String email, String inputOtp) {
-        OtpDetails details = otpCache.getIfPresent(email);
+        // Normalize email and trim input OTP to be resilient against casing and whitespace
+        String normalizedEmail = email.trim().toLowerCase();
+        String cleanedOtp = inputOtp != null ? inputOtp.trim() : "";
+
+        OtpDetails details = otpCache.getIfPresent(normalizedEmail);
 
         if (details == null) {
             throw new IllegalArgumentException("OTP expired or not requested. Please request a new one.");
         }
 
         if (details.getAttempts() >= 3) {
-            otpCache.invalidate(email);
+            otpCache.invalidate(normalizedEmail);
             throw new IllegalArgumentException("Too many invalid attempts. Your OTP has been revoked. Please request a new one.");
         }
 
-        if (!details.getOtp().equals(inputOtp)) {
+        if (!details.getOtp().equals(cleanedOtp)) {
             details.incrementAttempts();
-            // Optional: immediately save state back (Caffeine is by-reference anyway, but good practice if extending)
-            otpCache.put(email, details);
+            otpCache.put(normalizedEmail, details);
             throw new IllegalArgumentException("Invalid OTP. Attempts left: " + (3 - details.getAttempts()));
         }
 
         // If success, destroy the OTP out of the cache to prevent reuse attacks
-        otpCache.invalidate(email);
+        otpCache.invalidate(normalizedEmail);
     }
 }
