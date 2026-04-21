@@ -48,13 +48,38 @@ export default function Connections() {
   }, [loading, hasMore, fetchUsers, page]);
 
   const handleFollowToggle = async (userId) => {
+    const targetUser = users.find(u => u.id === userId);
+    if (!targetUser) return;
+
+    // Optimistic UI update
+    const wasFollowing = targetUser.isFollowing;
+    const isMutual = targetUser.isFollowedBy;
+    
+    setUsers(prev => prev.map(u => 
+      u.id === userId ? { ...u, isFollowing: !wasFollowing } : u
+    ));
+
     try {
       const result = await toggleFollow(userId);
+      // Sync with server if needed (result might be slightly different in edge cases)
       setUsers(prev => prev.map(u => 
         u.id === userId ? { ...u, isFollowing: result.isFollowing } : u
       ));
-      showToast("success", result.isFollowing ? "Following user" : "Unfollowed user");
+
+      if (result.isFollowing) {
+        if (isMutual) {
+          showToast("success", "You are now connected!");
+        } else {
+          showToast("success", "Following user");
+        }
+      } else {
+        showToast("info", "Unfollowed user");
+      }
     } catch (err) {
+      // Revert on error
+      setUsers(prev => prev.map(u => 
+        u.id === userId ? { ...u, isFollowing: wasFollowing } : u
+      ));
       showToast("error", "Action failed");
     }
   };

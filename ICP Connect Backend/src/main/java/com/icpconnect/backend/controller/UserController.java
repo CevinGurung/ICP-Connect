@@ -26,11 +26,11 @@ public class UserController {
     }
 
     @PostMapping("/{id}/follow")
-    public ResponseEntity<Void> toggleFollow(
+    public ResponseEntity<java.util.Map<String, Boolean>> toggleFollow(
             @PathVariable Long id,
             @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
-        userService.toggleFollow(id, principal.getUser());
-        return ResponseEntity.ok().build();
+        boolean isFollowing = userService.toggleFollow(id, principal.getUser());
+        return ResponseEntity.ok(java.util.Map.of("isFollowing", isFollowing));
     }
 
     @PutMapping("/profile")

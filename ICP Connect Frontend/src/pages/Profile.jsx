@@ -173,6 +173,8 @@ export default function Profile() {
     
     // Optimistic UI
     const wasFollowing = profile.isFollowing;
+    const isMutual = profile.isFollowedBy;
+    
     setProfile(prev => ({
       ...prev,
       isFollowing: !wasFollowing,
@@ -181,7 +183,20 @@ export default function Profile() {
     
     setFollowLoading(true);
     try {
-      await toggleFollow(profile.id);
+      const result = await toggleFollow(profile.id);
+      
+      // Update state from source of truth
+      setProfile(prev => ({ ...prev, isFollowing: result.isFollowing }));
+
+      if (result.isFollowing) {
+        if (isMutual) {
+          showToast("success", "You are now connected!");
+        } else {
+          showToast("success", "Following user");
+        }
+      } else {
+        showToast("info", "Unfollowed user");
+      }
     } catch (err) {
       // Revert on error
       setProfile(prev => ({
@@ -240,27 +255,51 @@ export default function Profile() {
   };
 
   const handleListFollowToggle = async (user) => {
+    const wasFollowing = user.isFollowing;
+    const isMutual = user.isFollowedBy;
+
     // Optimistic UI for list
     setListData(prev => prev.map(u => 
-      u.id === user.id ? { ...u, isFollowing: !u.isFollowing } : u
+      u.id === user.id ? { ...u, isFollowing: !wasFollowing } : u
     ));
     
     // Sync main profile stats if the current profile is the one being affected
     if (user.id === profile.id) {
         setProfile(prev => ({
             ...prev,
-            isFollowing: !user.isFollowing,
-            followersCount: user.isFollowing ? prev.followersCount - 1 : prev.followersCount + 1
+            isFollowing: !wasFollowing,
+            followersCount: wasFollowing ? prev.followersCount - 1 : prev.followersCount + 1
         }));
     }
 
     try {
-      await toggleFollow(user.id);
+      const result = await toggleFollow(user.id);
+      
+      setListData(prev => prev.map(u => 
+        u.id === user.id ? { ...u, isFollowing: result.isFollowing } : u
+      ));
+
+      if (result.isFollowing) {
+        if (isMutual) {
+          showToast("success", "You are now connected!");
+        } else {
+          showToast("success", "Following user");
+        }
+      } else {
+        showToast("info", "Unfollowed user");
+      }
     } catch (err) {
       // Revert on error
       setListData(prev => prev.map(u => 
-        u.id === user.id ? { ...u, isFollowing: user.isFollowing } : u
+        u.id === user.id ? { ...u, isFollowing: wasFollowing } : u
       ));
+      if (user.id === profile.id) {
+        setProfile(prev => ({
+            ...prev,
+            isFollowing: wasFollowing,
+            followersCount: wasFollowing ? prev.followersCount + 1 : prev.followersCount - 1
+        }));
+      }
       showToast("error", "Action failed");
     }
   };
@@ -1276,7 +1315,8 @@ export default function Profile() {
                                   )}
                                 </div>
                                 
-                                {!editingCommentId && currentUser && currentUser.userId === comment.userId && (
+                                {!editingCommentId && currentUser && 
+                                 (String(comment.userId) === String(currentUser.id || currentUser.userId)) && (
                                   <div className="comment-actions">
                                     <button onClick={() => {
                                       setEditingCommentId(comment.id);

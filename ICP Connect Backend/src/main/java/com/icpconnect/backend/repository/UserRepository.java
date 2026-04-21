@@ -30,13 +30,21 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // Admin: count by role
     long countByRole(Role role);
 
+    long countByIsActiveTrue();
+
+    long countByRoleAndIsActiveTrue(Role role);
+
     // Admin: paginated with optional role and search filter
     @Query("SELECT u FROM User u WHERE " +
+           "(u.isActive = true) AND " +
            "(:role IS NULL OR u.role = :role) AND " +
            "(:search IS NULL OR LOWER(u.fullName) LIKE :search OR LOWER(u.email) LIKE :search OR LOWER(u.userName) LIKE :search)")
     Page<User> findByRoleAndSearch(@Param("role") Role role, @Param("search") String search, Pageable pageable);
 
     // Admin: count users joined today
+    @Query("SELECT COUNT(u) FROM User u WHERE u.createdAt >= :start AND u.isActive = true")
+    long countByCreatedAtAfterAndIsActiveTrue(@Param("start") java.time.LocalDateTime start);
+
     @Query("SELECT COUNT(u) FROM User u WHERE u.createdAt >= :start")
     long countByCreatedAtAfter(@Param("start") java.time.LocalDateTime start);
 }

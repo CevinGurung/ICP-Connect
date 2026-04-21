@@ -31,17 +31,17 @@ public class AdminService {
     public AdminDashboardDTO getDashboardStats() {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
 
-        long totalUsers = userRepository.count();
-        long totalStudents = userRepository.countByRole(Role.STUDENT);
-        long totalTeachers = userRepository.countByRole(Role.TEACHER);
-        long totalAdmins = userRepository.countByRole(Role.ADMIN);
-        long totalPosts = postRepository.countByIsDeletedFalse();
+        long totalUsers = userRepository.countByIsActiveTrue();
+        long totalStudents = userRepository.countByRoleAndIsActiveTrue(Role.STUDENT);
+        long totalTeachers = userRepository.countByRoleAndIsActiveTrue(Role.TEACHER);
+        long totalAdmins = userRepository.countByRoleAndIsActiveTrue(Role.ADMIN);
+        long totalPosts = postRepository.countByIsDeletedFalse(); // already filtered in repository
         long totalComments = commentRepository.countByIsDeletedFalse();
         long totalReports = postReportRepository.count();
         long pendingReports = postReportRepository.countByStatus("PENDING");
         long totalDonations = donationRepository.countByStatus("COMPLETED");
         BigDecimal totalDonationAmount = donationRepository.sumCompletedDonations();
-        long newUsersToday = userRepository.countByCreatedAtAfter(startOfDay);
+        long newUsersToday = userRepository.countByCreatedAtAfterAndIsActiveTrue(startOfDay);
         long newPostsToday = postRepository.countByCreatedAtAfter(startOfDay);
 
         return new AdminDashboardDTO(

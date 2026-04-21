@@ -183,13 +183,38 @@ export default function Home() {
   };
 
   const handleListFollowToggle = async (targetUser) => {
+    const wasFollowing = targetUser.isFollowing;
+    const isMutual = targetUser.isFollowedBy;
+
+    // Optimistic UI update
+    setListData(prev => prev.map(u => 
+      u.id === targetUser.id ? { ...u, isFollowing: !wasFollowing } : u
+    ));
+
     try {
-      const updated = await toggleFollow(targetUser.id);
-      setListData(prev => prev.map(u => u.id === targetUser.id ? { ...u, isFollowing: updated.isFollowing } : u));
+      const result = await toggleFollow(targetUser.id);
+      setListData(prev => prev.map(u => 
+        u.id === targetUser.id ? { ...u, isFollowing: result.isFollowing } : u
+      ));
+
+      if (result.isFollowing) {
+        if (isMutual) {
+          showToast("success", "You are now connected!");
+        } else {
+          showToast("success", "Following user");
+        }
+      } else {
+        showToast("info", "Unfollowed user");
+      }
+
       // Refresh analytics as follow state changed
       const user = getUserInfo();
       if (user) fetchAnalytics(user.userId || user.id);
     } catch (err) {
+      // Revert on error
+      setListData(prev => prev.map(u => 
+        u.id === targetUser.id ? { ...u, isFollowing: wasFollowing } : u
+      ));
       showToast("error", "Action failed");
     }
   };
@@ -207,10 +232,21 @@ export default function Home() {
   };
 
   const handleRecommendationFollow = async (userId) => {
+    const targetUser = recommendations.find(u => u.id === userId);
+    const isMutual = targetUser?.isFollowedBy;
+
     try {
-      await toggleFollow(userId);
+      const result = await toggleFollow(userId);
       setRecommendations(prev => prev.filter(u => u.id !== userId));
-      showToast("success", "User followed!");
+      
+      if (result.isFollowing) {
+        if (isMutual) {
+          showToast("success", "You are now connected!");
+        } else {
+          showToast("success", "User followed!");
+        }
+      }
+      
       // Analytics might update if it was a mutual follow
       const user = getUserInfo();
       if (user) fetchAnalytics(user.userId || user.id);
@@ -1699,7 +1735,8 @@ export default function Home() {
                                 )}
                               </div>
                               
-                              {!editingCommentId && currentUser && currentUser.userId === comment.userId && (
+                               {!editingCommentId && currentUser && 
+                                (String(comment.userId) === String(currentUser.id || currentUser.userId)) && (
                                 <div className="comment-actions">
                                   <button onClick={() => {
                                     setEditingCommentId(comment.id);

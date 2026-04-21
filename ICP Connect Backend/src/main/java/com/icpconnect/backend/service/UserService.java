@@ -40,9 +40,13 @@ public class UserService {
         User targetUser = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
+        if (!targetUser.isActive()) {
+            throw new IllegalArgumentException("This account has been deactivated.");
+        }
+
         long postCount = postRepository.countByUserIdAndIsDeletedFalse(userId);
-        long followersCount = followRepository.countByFollowingId(userId);
-        long followingCount = followRepository.countByFollowerId(userId);
+        long followersCount = followRepository.countByFollowingIdAndFollowerIsActiveTrue(userId);
+        long followingCount = followRepository.countByFollowerIdAndFollowingIsActiveTrue(userId);
 
         boolean isFollowing = false;
         boolean isFollowedBy = false;
@@ -76,7 +80,7 @@ public class UserService {
     }
 
     @Transactional
-    public void toggleFollow(Long targetUserId, User currentUser) {
+    public boolean toggleFollow(Long targetUserId, User currentUser) {
         if (currentUser.getId().equals(targetUserId)) {
             throw new IllegalArgumentException("You cannot follow yourself.");
         }
@@ -85,40 +89,41 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("Target user not found"));
 
         try {
-            followRepository.findByFollowerAndFollowing(currentUser, targetUser)
-                .ifPresentOrElse(
-                    followRepository::delete,
-                    () -> {
-                        Follow follow = new Follow();
-                        follow.setFollower(currentUser);
-                        follow.setFollowing(targetUser);
-                        followRepository.save(follow);
+            var followOpt = followRepository.findByFollowerAndFollowing(currentUser, targetUser);
+            if (followOpt.isPresent()) {
+                followRepository.delete(followOpt.get());
+                return false;
+            } else {
+                Follow follow = new Follow();
+                follow.setFollower(currentUser);
+                follow.setFollowing(targetUser);
+                followRepository.save(follow);
 
-                        // Fire FOLLOW notification
-                        notificationService.createNotification(
-                                targetUser, currentUser, NotificationType.FOLLOW,
-                                null, null,
-                                currentUser.getFullName() + " started following you"
-                        );
-
-                        // Check if mutual follow → FOLLOW_BACK for BOTH users
-                        if (followRepository.existsByFollowerIdAndFollowingId(
-                                targetUser.getId(), currentUser.getId())) {
-                            notificationService.createNotification(
-                                    targetUser, currentUser, NotificationType.FOLLOW_BACK,
-                                    null, null,
-                                    "You and " + currentUser.getFullName() + " are now connected"
-                            );
-                            notificationService.createNotification(
-                                    currentUser, targetUser, NotificationType.FOLLOW_BACK,
-                                    null, null,
-                                    "You and " + targetUser.getFullName() + " are now connected"
-                            );
-                        }
-                    }
+                // Fire FOLLOW notification
+                notificationService.createNotification(
+                        targetUser, currentUser, NotificationType.FOLLOW,
+                        null, null,
+                        currentUser.getFullName() + " started following you"
                 );
+
+                // Check if mutual follow → FOLLOW_BACK for BOTH users
+                if (followRepository.existsByFollowerIdAndFollowingId(
+                        targetUser.getId(), currentUser.getId())) {
+                    notificationService.createNotification(
+                            targetUser, currentUser, NotificationType.FOLLOW_BACK,
+                            null, null,
+                            "You and " + currentUser.getFullName() + " are now connected"
+                    );
+                    notificationService.createNotification(
+                            currentUser, targetUser, NotificationType.FOLLOW_BACK,
+                            null, null,
+                            "You and " + targetUser.getFullName() + " are now connected"
+                    );
+                }
+                return true;
+            }
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            // Concurrent request might have inserted it already, just treat as success/ignore
+            return true; // Assume followed if constraint hit
         }
     }
 
@@ -160,12 +165,14 @@ public class UserService {
 
     public java.util.List<com.icpconnect.backend.dto.UserSummaryDTO> getUserFollowers(Long userId, User currentUser) {
         return followRepository.findByFollowingId(userId).stream()
+                .filter(f -> f.getFollower().isActive())
                 .map(f -> mapToSummary(f.getFollower(), currentUser))
                 .toList();
     }
 
     public java.util.List<com.icpconnect.backend.dto.UserSummaryDTO> getUserFollowing(Long userId, User currentUser) {
         return followRepository.findByFollowerId(userId).stream()
+                .filter(f -> f.getFollowing().isActive())
                 .map(f -> mapToSummary(f.getFollowing(), currentUser))
                 .toList();
     }
@@ -187,7 +194,7 @@ public class UserService {
             userRepository.findByProgramAndYearAndSectionAndIdNot(
                 currentUser.getProgram(), currentUser.getYear(), currentUser.getSection(), currentUser.getId())
                 .stream()
-                .filter(u -> !followingIds.contains(u.getId()))
+                .filter(u -> u.isActive() && !followingIds.contains(u.getId()))
                 .forEach(u -> {
                     if (addedIds.add(u.getId())) allMatches.add(u);
                 });
@@ -197,7 +204,7 @@ public class UserService {
         if (currentUser.getProgram() != null) {
             userRepository.findByProgramAndIdNot(currentUser.getProgram(), currentUser.getId())
                 .stream()
-                .filter(u -> !followingIds.contains(u.getId()))
+                .filter(u -> u.isActive() && !followingIds.contains(u.getId()))
                 .forEach(u -> {
                     if (addedIds.add(u.getId())) allMatches.add(u);
                 });
@@ -207,7 +214,7 @@ public class UserService {
         int randomLimit = 100; 
         userRepository.findRandomUsers(currentUser.getId(), randomLimit)
             .stream()
-            .filter(u -> !followingIds.contains(u.getId()))
+            .filter(u -> u.isActive() && !followingIds.contains(u.getId()))
             .forEach(u -> {
                 if (addedIds.add(u.getId())) allMatches.add(u);
             });
@@ -249,8 +256,8 @@ public class UserService {
         java.util.List<Follow> myFollowing = followRepository.findByFollowerId(currentUser.getId());
         
         return myFollowing.stream()
-                .filter(f -> followRepository.existsByFollowerIdAndFollowingId(
-                        f.getFollowing().getId(), currentUser.getId())) // they also follow me
+                .filter(f -> f.getFollowing().isActive() && followRepository.existsByFollowerIdAndFollowingId(
+                        f.getFollowing().getId(), currentUser.getId())) // they also follow me and are active
                 .map(f -> mapToSummary(f.getFollowing(), currentUser))
                 .toList();
     }

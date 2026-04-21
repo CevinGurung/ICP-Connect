@@ -174,8 +174,8 @@ export default function AdminUsers() {
                             : u.fullName?.[0]?.toUpperCase()}
                         </div>
                         <div>
-                          <div style={{ fontWeight: 600, color: u.active ? "#E6EDF3" : "#8B949E" }}>
-                            {u.fullName} {!u.active && <span style={{ fontSize: 10, opacity: 0.6 }}>(Disabled)</span>}
+                          <div style={{ fontWeight: 600, color: u.isActive ? "#E6EDF3" : "#8B949E" }}>
+                            {u.fullName} {!u.isActive && <span style={{ fontSize: 10, opacity: 0.6 }}>(Disabled)</span>}
                           </div>
                           <div style={{ fontSize: 11, color: "#8B949E" }}>@{u.userName}</div>
                         </div>
