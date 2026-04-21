@@ -28,14 +28,15 @@ export default function Login() {
   const onSubmit = async (e) => {
     if (e) e.preventDefault();
     
-    if (!form.email.trim().endsWith("@icp.edu.np")) {
-      showToast("error", "Only @icp.edu.np emails are allowed");
-      return;
-    }
+    const cleanedForm = {
+      ...form,
+      email: form.email.trim().toLowerCase(),
+      otp: form.otp.trim()
+    };
 
     setLoading(true);
     try {
-      const data = await loginApi(form);
+      const data = await loginApi(cleanedForm);
       
       if (data.otpRequired) {
         setStep(2);

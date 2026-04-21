@@ -61,7 +61,7 @@ export default function Register() {
   const handleRequestOtp = async (e) => {
     if (e) e.preventDefault();
     
-    const emailToUse = form.email.trim();
+    const emailToUse = form.email.trim().toLowerCase();
     if (!validateEmail(emailToUse)) {
       showToast("error", "Only @icp.edu.np emails are allowed");
       return;
@@ -94,7 +94,11 @@ export default function Register() {
   const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    const cleanedForm = { ...form, email: form.email.trim() };
+    const cleanedForm = { 
+      ...form, 
+      email: form.email.trim().toLowerCase(),
+      otp: form.otp.trim() 
+    };
     try {
       const data = await registerApi(cleanedForm);
       setTokens(data.accessToken, data.refreshToken);
