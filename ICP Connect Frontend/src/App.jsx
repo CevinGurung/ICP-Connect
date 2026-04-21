@@ -13,6 +13,7 @@ import "./App.css";
 
 const Connections = lazy(() => import("./pages/Connections.jsx"));
 const Messages = lazy(() => import("./pages/Messages.jsx"));
+const Notifications = lazy(() => import("./pages/Notifications.jsx"));
 
 const NotificationContext = createContext(null);
 
@@ -125,6 +126,14 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <Messages />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/notifications"
+                element={
+                  <ProtectedRoute>
+                    <Notifications />
                   </ProtectedRoute>
                 }
               />

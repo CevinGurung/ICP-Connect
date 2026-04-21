@@ -1,7 +1,10 @@
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
 import { clearTokens, getRefreshToken, isLoggedIn } from "../auth/auth.js";
 import { logout as logoutApi } from "../services/authService.js";
 import { getUserInfo } from "../auth/auth.js";
+import { getUnreadCount } from "../services/notificationService.js";
+import { connectWebSocket, disconnectWebSocket, forceDisconnectWebSocket, subscribeToNotifications } from "../services/chatService.js";
 import { 
   Home, 
   Users, 
@@ -16,8 +19,46 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const loggedIn = isLoggedIn();
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const wsInitialized = useRef(false);
+  const notifSub = useRef(null);
 
   const isAuthPage = location.pathname === "/login" || location.pathname === "/register";
+
+  // Fetch unread count and setup WebSocket for real-time badge
+  useEffect(() => {
+    if (!loggedIn || isAuthPage) return;
+
+    // Fetch initial unread count
+    getUnreadCount().then(setUnreadNotifs).catch(() => {});
+
+    // Setup WebSocket for real-time notification badge
+    if (!wsInitialized.current) {
+      wsInitialized.current = true;
+      connectWebSocket(() => {
+        // On connected, subscribe to notifications
+        notifSub.current = subscribeToNotifications(() => {
+          // Increment badge count on new notification (real-time)
+          setUnreadNotifs((prev) => prev + 1);
+        });
+      });
+    }
+
+    return () => {
+      if (notifSub.current) {
+        notifSub.current.unsubscribe();
+        notifSub.current = null;
+      }
+      disconnectWebSocket();
+    };
+  }, [loggedIn, isAuthPage]);
+
+  // Reset badge when navigating to /notifications
+  useEffect(() => {
+    if (location.pathname === "/notifications") {
+      setUnreadNotifs(0);
+    }
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     try {
@@ -26,6 +67,8 @@ export default function Navbar() {
     } catch {
       // ignore backend logout errors; still clear local session
     } finally {
+      wsInitialized.current = false;
+      forceDisconnectWebSocket();
       clearTokens();
       navigate("/login");
     }
@@ -38,7 +81,18 @@ export default function Navbar() {
     { to: "/", icon: <Home size={24} />, label: "Home" },
     { to: "/connections", icon: <Users size={24} />, label: "Connections" },
     { to: "/messages", icon: <MessageSquare size={24} />, label: "Message" },
-    { to: "/notifications", icon: <Bell size={24} />, label: "Notification" },
+    { 
+      to: "/notifications", 
+      icon: (
+        <span className="nav-bell-wrap">
+          <Bell size={24} />
+          {unreadNotifs > 0 && (
+            <span className="nav-notif-badge">{unreadNotifs > 99 ? "99+" : unreadNotifs}</span>
+          )}
+        </span>
+      ), 
+      label: "Notification" 
+    },
     { to: currentUserId ? `/profile/${currentUserId}` : "/profile", icon: <UserIcon size={24} />, label: "Profile" },
   ];
 
@@ -200,6 +254,35 @@ export default function Navbar() {
         .nav-auth {
           display: flex;
           gap: 12px;
+        }
+
+        /* Notification badge */
+        .nav-bell-wrap {
+          position: relative;
+          display: inline-flex;
+        }
+        .nav-notif-badge {
+          position: absolute;
+          top: -6px;
+          right: -8px;
+          min-width: 18px;
+          height: 18px;
+          border-radius: 10px;
+          background: linear-gradient(135deg, #f85149, #da3633);
+          color: white;
+          font-size: 10px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 4px;
+          line-height: 1;
+          box-shadow: 0 0 6px rgba(248,81,73,0.5);
+          animation: badge-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes badge-pop {
+          0% { transform: scale(0); }
+          100% { transform: scale(1); }
         }
 
         @media (max-width: 768px) {

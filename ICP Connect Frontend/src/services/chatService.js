@@ -41,12 +41,30 @@ export const uploadChatImage = async (conversationId, file) => {
   return res.data;
 };
 
-// ============ WEBSOCKET (STOMP) ============
+// ============ WEBSOCKET (STOMP) — Singleton ============
 
 let stompClient = null;
+let connectionRefCount = 0;
+let connectedCallbacks = [];
 
 export const connectWebSocket = (onConnected, onError) => {
+  connectionRefCount++;
+
+  // If already connected, fire callback immediately
+  if (stompClient && stompClient.connected) {
+    if (onConnected) onConnected();
+    return;
+  }
+
+  // If connecting (client exists but not yet connected), queue callback
+  if (stompClient && !stompClient.connected) {
+    if (onConnected) connectedCallbacks.push(onConnected);
+    return;
+  }
+
+  // First connection — create the client
   const token = getAccessToken();
+  if (onConnected) connectedCallbacks.push(onConnected);
 
   stompClient = new Client({
     webSocketFactory: () => new SockJS(`${API_BASE}/ws`),
@@ -55,7 +73,9 @@ export const connectWebSocket = (onConnected, onError) => {
     },
     reconnectDelay: 5000,
     onConnect: () => {
-      if (onConnected) onConnected();
+      // Fire all queued callbacks
+      connectedCallbacks.forEach(cb => cb());
+      connectedCallbacks = [];
     },
     onStompError: (frame) => {
       console.error("STOMP error:", frame);
@@ -85,8 +105,36 @@ export const sendMessageWS = (conversationId, content, messageType = "TEXT") => 
 };
 
 export const disconnectWebSocket = () => {
+  connectionRefCount--;
+
+  // Only truly disconnect when no more consumers
+  if (connectionRefCount <= 0) {
+    connectionRefCount = 0;
+    if (stompClient) {
+      stompClient.deactivate();
+      stompClient = null;
+    }
+    connectedCallbacks = [];
+  }
+};
+
+/** Force disconnect (used for logout) */
+export const forceDisconnectWebSocket = () => {
+  connectionRefCount = 0;
   if (stompClient) {
     stompClient.deactivate();
     stompClient = null;
   }
+  connectedCallbacks = [];
 };
+
+export const subscribeToNotifications = (onNotification) => {
+  if (!stompClient || !stompClient.connected) return null;
+
+  return stompClient.subscribe("/user/queue/notifications", (message) => {
+    const parsed = JSON.parse(message.body);
+    onNotification(parsed);
+  });
+};
+
+export const getStompClient = () => stompClient;

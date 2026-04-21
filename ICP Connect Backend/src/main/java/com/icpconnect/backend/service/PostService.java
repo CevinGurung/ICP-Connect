@@ -1,10 +1,7 @@
 package com.icpconnect.backend.service;
 
 import com.icpconnect.backend.dto.LikedUserDTO;
-import com.icpconnect.backend.entity.Post;
-import com.icpconnect.backend.entity.PostLike;
-import com.icpconnect.backend.entity.PostMedia;
-import com.icpconnect.backend.entity.User;
+import com.icpconnect.backend.entity.*;
 import com.icpconnect.backend.repository.PostLikeRepository;
 import com.icpconnect.backend.repository.PostMediaRepository;
 import com.icpconnect.backend.repository.PostRepository;
@@ -29,16 +26,19 @@ public class PostService {
     private final PostMediaRepository postMediaRepository;
     private final UserRepository userRepository;
     private final PostLikeRepository postLikeRepository;
+    private final NotificationService notificationService;
     private final Path root = Paths.get("uploads/posts");
 
     public PostService(PostRepository postRepository, 
                        PostMediaRepository postMediaRepository, 
                        UserRepository userRepository,
-                       PostLikeRepository postLikeRepository) {
+                       PostLikeRepository postLikeRepository,
+                       NotificationService notificationService) {
         this.postRepository = postRepository;
         this.postMediaRepository = postMediaRepository;
         this.userRepository = userRepository;
         this.postLikeRepository = postLikeRepository;
+        this.notificationService = notificationService;
     }
 
     @PostConstruct
@@ -138,6 +138,13 @@ public class PostService {
                 postRepository.incrementLikeCount(postId);
                 post.setLikeCount(post.getLikeCount() + 1);
                 post.setLiked(true);
+
+                // Fire LIKE notification (duplicate-safe, self-safe)
+                notificationService.createNotification(
+                        post.getUser(), user, NotificationType.LIKE,
+                        post, null,
+                        user.getFullName() + " liked your post"
+                );
             }
         );
         return post;

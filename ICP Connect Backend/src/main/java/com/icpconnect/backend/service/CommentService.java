@@ -2,9 +2,7 @@ package com.icpconnect.backend.service;
 
 import com.icpconnect.backend.dto.CommentDTO;
 import com.icpconnect.backend.dto.CommentRequest;
-import com.icpconnect.backend.entity.Comment;
-import com.icpconnect.backend.entity.Post;
-import com.icpconnect.backend.entity.User;
+import com.icpconnect.backend.entity.*;
 import com.icpconnect.backend.repository.CommentRepository;
 import com.icpconnect.backend.repository.PostRepository;
 import com.icpconnect.backend.repository.UserRepository;
@@ -20,13 +18,16 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public CommentService(CommentRepository commentRepository, 
                           PostRepository postRepository, 
-                          UserRepository userRepository) {
+                          UserRepository userRepository,
+                          NotificationService notificationService) {
         this.commentRepository = commentRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -44,6 +45,13 @@ public class CommentService {
         
         Comment saved = commentRepository.save(comment);
         postRepository.incrementCommentCount(postId);
+
+        // Fire COMMENT notification (duplicate-safe, self-safe)
+        notificationService.createNotification(
+                post.getUser(), user, NotificationType.COMMENT,
+                post, saved,
+                user.getFullName() + " commented on your post"
+        );
 
         return mapToDTO(saved);
     }

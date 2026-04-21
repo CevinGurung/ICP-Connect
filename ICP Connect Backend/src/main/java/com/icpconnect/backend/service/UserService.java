@@ -2,6 +2,7 @@ package com.icpconnect.backend.service;
 
 import com.icpconnect.backend.dto.UserProfileDTO;
 import com.icpconnect.backend.entity.Follow;
+import com.icpconnect.backend.entity.NotificationType;
 import com.icpconnect.backend.entity.User;
 import com.icpconnect.backend.repository.FollowRepository;
 import com.icpconnect.backend.repository.PostRepository;
@@ -15,12 +16,15 @@ public class UserService {
     private final UserRepository userRepository;
     private final FollowRepository followRepository;
     private final PostRepository postRepository;
+    private final NotificationService notificationService;
     private final java.nio.file.Path avatarRoot = java.nio.file.Paths.get("uploads/avatars");
 
-    public UserService(UserRepository userRepository, FollowRepository followRepository, PostRepository postRepository) {
+    public UserService(UserRepository userRepository, FollowRepository followRepository,
+                       PostRepository postRepository, NotificationService notificationService) {
         this.userRepository = userRepository;
         this.followRepository = followRepository;
         this.postRepository = postRepository;
+        this.notificationService = notificationService;
     }
 
     @jakarta.annotation.PostConstruct
@@ -86,6 +90,28 @@ public class UserService {
                         follow.setFollower(currentUser);
                         follow.setFollowing(targetUser);
                         followRepository.save(follow);
+
+                        // Fire FOLLOW notification
+                        notificationService.createNotification(
+                                targetUser, currentUser, NotificationType.FOLLOW,
+                                null, null,
+                                currentUser.getFullName() + " started following you"
+                        );
+
+                        // Check if mutual follow → FOLLOW_BACK for BOTH users
+                        if (followRepository.existsByFollowerIdAndFollowingId(
+                                targetUser.getId(), currentUser.getId())) {
+                            notificationService.createNotification(
+                                    targetUser, currentUser, NotificationType.FOLLOW_BACK,
+                                    null, null,
+                                    "You and " + currentUser.getFullName() + " are now connected"
+                            );
+                            notificationService.createNotification(
+                                    currentUser, targetUser, NotificationType.FOLLOW_BACK,
+                                    null, null,
+                                    "You and " + targetUser.getFullName() + " are now connected"
+                            );
+                        }
                     }
                 );
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
