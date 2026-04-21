@@ -11,5 +11,8 @@ public record UserSummaryDTO(
     String bio,
     String program,
     String year,
-    String section
+    String section,
+    String role,
+    String subject,
+    String specialty
 ) {}

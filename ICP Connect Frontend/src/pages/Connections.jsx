@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getRecommendations, toggleFollow } from "../services/userService";
 import { getUserInfo } from "../auth/auth";
 import { useNotification } from "../context/NotificationContext.jsx";
-import { Users, UserPlus, UserCheck, MapPin, GraduationCap, Info } from "lucide-react";
+import { Users, UserPlus, UserCheck, MapPin, GraduationCap, Info, BookOpen, Briefcase } from "lucide-react";
 import FollowButton from "../components/FollowButton";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8848";
@@ -80,7 +80,7 @@ export default function Connections() {
         <div className="header-stats">
           <div className="stat-item">
             <Users size={20} />
-            <span>Discovering students matching your profile</span>
+            <span>Discovering people matching your profile</span>
           </div>
         </div>
       </div>
@@ -118,18 +118,38 @@ export default function Connections() {
                   <h3 className="user-name">{user.fullName}</h3>
                   <span className="user-username">@{user.userName}</span>
                   
-                  <div className="academic-badge">
-                    <GraduationCap size={14} />
-                    <span>{user.year} Year · {user.program}</span>
-                  </div>
-                  
-                  <div className="section-tag">
-                    <Info size={12} />
-                    <span>Section {user.section || 'N/A'}</span>
-                  </div>
+                  {(user.role?.toUpperCase() === 'TEACHER' || user.subject) ? (
+                    <div className="teacher-info" style={{ marginTop: '8px' }}>
+                      <div className="role-badge-small">Faculty Member</div>
+                      <div className="academic-badge teacher">
+                        <BookOpen size={14} />
+                        <span>Subject: {user.subject || "Academic"}</span>
+                      </div>
+                      <div className="section-tag specialty">
+                        <Briefcase size={12} />
+                        <span>Specialty: {user.specialty || "Faculty Staff"}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="academic-badge">
+                        <GraduationCap size={14} />
+                        <span>{user.year || ''} Year · {user.program || ''}</span>
+                      </div>
+                      
+                      {user.section && (
+                        <div className="section-tag">
+                          <Info size={12} />
+                          <span>Section {user.section}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
 
                   {user.bio && (
-                    <p className="user-bio">{user.bio}</p>
+                    <p className="user-bio">
+                      <span className="bio-label">Bio:</span> {user.bio}
+                    </p>
                   )}
                 </div>
 
@@ -232,7 +252,20 @@ export default function Connections() {
           font-size: 11px; 
           color: var(--text-secondary);
           margin-bottom: 12px;
+          padding: 4px 8px;
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 4px;
+          border: 1px solid var(--border);
+          width: fit-content;
         }
+
+        .role-badge-small { 
+          font-size: 10px; text-transform: uppercase; letter-spacing: 1px; 
+          font-weight: 800; color: var(--success); background: rgba(63, 185, 80, 0.1); 
+          padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; 
+        }
+        .academic-badge.teacher { color: var(--success); margin-bottom: 8px; }
+        .section-tag.specialty { border-color: rgba(63, 185, 80, 0.2); }
 
         .user-bio { 
           font-size: 13px; 
@@ -243,6 +276,14 @@ export default function Connections() {
           -webkit-line-clamp: 3;
           -webkit-box-orient: vertical;
           overflow: hidden;
+        }
+
+        .bio-label { 
+          font-weight: 700; 
+          color: var(--text-muted); 
+          font-size: 11px; 
+          text-transform: uppercase; 
+          margin-right: 4px;
         }
 
         .card-footer { margin-top: auto; padding-top: 16px; }

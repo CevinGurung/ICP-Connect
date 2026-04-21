@@ -22,7 +22,9 @@ import {
   Award,
   Users,
   Heart,
-  Flag
+  Flag,
+  BookOpen,
+  Briefcase
 } from "lucide-react";
 import { useNotification } from "../context/NotificationContext.jsx";
 import DonationModal from "../components/DonationModal.jsx";
@@ -739,9 +741,19 @@ export default function Home() {
             <p className="sidebar-bio">{currentUser?.bio || "No bio set"}</p>
             
             <div className="sidebar-academic">
-              <span>{currentUser?.program}</span>
-              {currentUser?.year && <span className="dot">•</span>}
-              {currentUser?.year && <span>{currentUser.year} Year</span>}
+              {currentUser?.role === "TEACHER" ? (
+                <>
+                  <span style={{ color: 'var(--success)', fontWeight: '600' }}>{currentUser.subject || "Faculty Member"}</span>
+                  {currentUser.specialty && <span className="dot">•</span>}
+                  <span>{currentUser.specialty}</span>
+                </>
+              ) : (
+                <>
+                  <span>{currentUser?.program}</span>
+                  {currentUser?.year && <span className="dot">•</span>}
+                  <span>{currentUser?.year} Year</span>
+                </>
+              )}
             </div>
 
             <div className="sidebar-social-counts">
@@ -801,6 +813,24 @@ export default function Home() {
                   <span className="analytic-label">Connections</span>
                 </div>
               </div>
+              {currentUser?.role === "TEACHER" && (
+                <>
+                  <div className="analytic-box teacher-special">
+                    <BookOpen size={16} />
+                    <div className="analytic-info">
+                      <span className="analytic-val">{currentUser.subject || "Faculty"}</span>
+                      <span className="analytic-label">Teaching</span>
+                    </div>
+                  </div>
+                  <div className="analytic-box teacher-special">
+                    <Briefcase size={16} />
+                    <div className="analytic-info">
+                      <span className="analytic-val">{currentUser.specialty || "Academic"}</span>
+                      <span className="analytic-label">Specialty</span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -960,7 +990,11 @@ export default function Home() {
                       >
                         {post.user ? post.user.fullName : "Unknown User"}
                       </h4>
-                      <p className="author-role">{post.user ? post.user.program + " " + post.user.year + " Year" : "Community Member"}</p>
+                      <p className="author-role">
+                        {post.user?.role === "TEACHER" 
+                          ? <span style={{ color: 'var(--success)', fontWeight: '500' }}>{post.user.subject || "Faculty"} • {post.user.program || "ICP"}</span>
+                          : `${post.user?.program || ""} ${post.user?.year || ""} Year`}
+                      </p>
                       <p className="post-time"><Clock size={12} /> {formatDate(post.createdAt)}</p>
                     </div>
                     <div className="post-options">
@@ -1093,8 +1127,17 @@ export default function Home() {
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <span style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text-primary)' }}>{user.fullName}</span>
-                        <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '500' }}>
-                          {user.year} Year · {user.program}
+                        <span style={{ fontSize: '12px', color: (user.role?.toUpperCase() === 'TEACHER' || user.subject) ? 'var(--success)' : 'var(--primary)', fontWeight: '500' }}>
+                          {(user.role?.toUpperCase() === 'TEACHER' || user.subject) 
+                            ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span>{user.subject || "Faculty Member"}</span>
+                                  <span style={{ fontSize: '10px', opacity: 0.8, color: 'var(--text-secondary)' }}>
+                                    {user.specialty || "Academic Staff"}
+                                  </span>
+                                </div>
+                              )
+                            : `${user.year} Year · ${user.program}`}
                         </span>
                       </div>
                     </div>
@@ -1108,13 +1151,20 @@ export default function Home() {
                   
                   <div style={{ paddingLeft: '46px' }}>
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                      <span style={{ background: 'rgba(88, 166, 255, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>
-                        Section {user.section || 'N/A'}
-                      </span>
+                      {(user.role === 'TEACHER' || user.section) && (
+                        <span style={{ 
+                          background: user.role === 'TEACHER' ? 'rgba(63, 185, 80, 0.1)' : 'rgba(88, 166, 255, 0.1)', 
+                          color: user.role === 'TEACHER' ? 'var(--success)' : 'inherit',
+                          padding: '2px 6px', 
+                          borderRadius: '4px' 
+                        }}>
+                          {user.role === 'TEACHER' ? (user.specialty || 'Academic Staff') : `Section ${user.section}`}
+                        </span>
+                      )}
                     </div>
                     {user.bio && (
                       <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {user.bio}
+                        <strong>Bio:</strong> {user.bio}
                       </p>
                     )}
                   </div>
@@ -1222,6 +1272,8 @@ export default function Home() {
           transition: all 0.2s;
         }
         .analytic-box:hover { border-color: var(--primary); background: #161B22; }
+        .analytic-box.teacher-special { border-color: rgba(63, 185, 80, 0.3); background: rgba(63, 185, 80, 0.05); }
+        .analytic-box.teacher-special svg { color: var(--success); }
         .analytic-box svg { color: var(--primary); flex-shrink: 0; }
         .analytic-info { display: flex; flex-direction: column; }
         .analytic-val { font-size: 14px; font-weight: 700; color: #E6EDF3; }

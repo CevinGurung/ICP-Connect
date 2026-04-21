@@ -65,11 +65,28 @@ export default function Login() {
     }
   };
 
-  const handleResend = () => {
+  const handleResend = async () => {
     if (resendTimer > 0) return;
+    
+    // Clear the OTP field in UI
     setForm(prev => ({ ...prev, otp: "" }));
-    // Small timeout to ensure state is updated before submission
-    setTimeout(() => onSubmit(), 0);
+    
+    try {
+      // Direct call to login API without triggering global 'loading' state
+      const data = await loginApi({
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        otp: ""
+      });
+
+      if (data.otpRequired) {
+        showToast("success", "New OTP sent to your email.");
+        setResendTimer(30);
+      }
+    } catch (error) {
+      const errorMsg = error?.response?.data?.message || "Failed to resend OTP";
+      showToast("error", errorMsg);
+    }
   };
 
   return (

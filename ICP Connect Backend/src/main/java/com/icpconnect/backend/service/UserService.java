@@ -237,7 +237,10 @@ public class UserService {
                 user.getBio(),
                 user.getProgram(),
                 user.getYear(),
-                user.getSection()
+                user.getSection(),
+                user.getRole() != null ? user.getRole().name() : null,
+                user.getSubject(),
+                user.getSpecialty()
         );
     }
 
@@ -248,13 +251,7 @@ public class UserService {
         return myFollowing.stream()
                 .filter(f -> followRepository.existsByFollowerIdAndFollowingId(
                         f.getFollowing().getId(), currentUser.getId())) // they also follow me
-                .map(f -> {
-                    User u = f.getFollowing();
-                    return new com.icpconnect.backend.dto.UserSummaryDTO(
-                            u.getId(), u.getFullName(), u.getUserName(),
-                            u.getProfileImageUrl(), true, true,
-                            false, u.getBio(), u.getProgram(), u.getYear(), u.getSection()
-                    );
-                }).toList();
+                .map(f -> mapToSummary(f.getFollowing(), currentUser))
+                .toList();
     }
 }

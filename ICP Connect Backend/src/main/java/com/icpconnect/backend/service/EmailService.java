@@ -25,25 +25,25 @@ public class EmailService {
             String actionVerb = purpose.equals("Registration") ? "complete your registration" : "verify your identity";
 
             String htmlMsg = """
-                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background-color: #0D1117; color: #E6EDF3; padding: 40px; text-align: center; border-radius: 12px; max-width: 600px; margin: auto; border: 1px solid #30363D;">
-                    <div style="margin-bottom: 24px;">
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background-color: #0D1117; color: #E6EDF3; padding: 20px; text-align: center; border-radius: 12px; max-width: 600px; margin: auto; border: 1px solid #30363D;">
+                    <div style="margin-bottom: 24px; padding: 20px 0;">
                         <h1 style="color: #58A6FF; margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.5px;">ICP Connect</h1>
                         <p style="color: #8B949E; margin: 4px 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">%s</p>
                     </div>
                     
-                    <div style="background-color: #1C2128; border: 1px solid #30363D; border-radius: 8px; padding: 32px; margin: 24px 0;">
-                        <p style="font-size: 16px; margin: 0 0 20px; color: #8B949E;">
+                    <div style="background-color: #1C2128; border: 1px solid #30363D; border-radius: 8px; padding: 32px 16px; margin: 0 0 24px;">
+                        <p style="font-size: 16px; margin: 0 0 20px; color: #8B949E; line-height: 1.5;">
                             Please use the following 6-digit code to %s. 
                             This code will expire in <strong style="color: #E6EDF3;">5 minutes</strong>.
                         </p>
                         
-                        <div style="display: inline-block; background-color: #0D1117; padding: 12px 24px; border-radius: 8px; border: 1px solid #30363D; margin: 8px 0;">
-                            <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 42px; font-weight: 700; letter-spacing: 16px; color: #58A6FF; margin-right: -16px;">%s</span>
+                        <div style="display: inline-block; background-color: #0D1117; padding: 12px 16px; border-radius: 8px; border: 1px solid #30363D; margin: 8px 0; max-width: 100%%; box-sizing: border-box;">
+                            <span style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 32px; font-weight: 700; letter-spacing: 10px; color: #58A6FF; margin-right: -10px; word-break: break-all;">%s</span>
                         </div>
                     </div>
                     
                     <div style="margin-top: 32px; border-top: 1px solid #30363D; padding-top: 24px;">
-                        <p style="font-size: 13px; color: #6E7681; margin: 0;">
+                        <p style="font-size: 12px; color: #6E7681; margin: 0;">
                             If you did not initiate this request, you can safely ignore this email.
                         </p>
                     </div>

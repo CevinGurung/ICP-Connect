@@ -57,7 +57,9 @@ export default function Profile() {
     bio: "",
     program: "",
     year: "",
-    section: ""
+    section: "",
+    subject: "",
+    specialty: ""
   });
   const [profilePicFile, setProfilePicFile] = useState(null);
   const [profilePicPreview, setProfilePicPreview] = useState(null);
@@ -154,7 +156,9 @@ export default function Profile() {
         bio: profileData.bio || "",
         program: profileData.program || "",
         year: profileData.year || "",
-        section: profileData.section || ""
+        section: profileData.section || "",
+        subject: profileData.subject || "",
+        specialty: profileData.specialty || ""
       });
     } catch (err) {
       showToast("error", "Failed to load profile");
@@ -545,11 +549,27 @@ export default function Profile() {
                 <p className="profile-username">@{profile.userName}</p>
                 {profile.bio && <p className="profile-bio">{profile.bio}</p>}
                 <div className="profile-academic">
-                  <span>{profile.program}</span>
-                  <span className="dot">•</span>
-                  <span>Year {profile.year}</span>
-                  <span className="dot">•</span>
-                  <span>Section {profile.section}</span>
+                  {profile.role === 'TEACHER' ? (
+                    <>
+                      <span style={{ color: 'var(--success)', fontWeight: '600' }}>{profile.subject || "Faculty Member"}</span>
+                      {profile.specialty && <span className="dot">•</span>}
+                      {profile.specialty && <span>{profile.specialty}</span>}
+                      <span className="dot">•</span>
+                      <span>Faculty of {profile.program}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{profile.program}</span>
+                      <span className="dot">•</span>
+                      <span>Year {profile.year}</span>
+                      {profile.section && (
+                        <>
+                          <span className="dot">•</span>
+                          <span>Section {profile.section}</span>
+                        </>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -619,7 +639,9 @@ export default function Profile() {
                         {profile.fullName}
                       </h4>
                       <p className="author-role" style={{ fontSize: '12px', color: '#8B949E', margin: '2px 0' }}>
-                        {profile.program} {profile.year} {profile.year ? (profile.year === '3.5' ? 'Year' : 'Year') : ''}
+                        {profile.role === 'TEACHER' 
+                          ? <span style={{ color: 'var(--success)', fontWeight: '500' }}>{profile.subject || "Faculty"} • {profile.program || "ICP"}</span>
+                          : `${profile.program} ${profile.year} Year`}
                       </p>
                       <p className="post-time"><Clock size={12} /> {formatDate(post.createdAt)}</p>
                     </div>
@@ -780,46 +802,71 @@ export default function Profile() {
                     <select 
                       className="form-select"
                       value={editForm.program} 
-                      onChange={e => setEditForm({...editForm, program: e.target.value, year: ""})} 
+                      onChange={e => setEditForm({...editForm, program: e.target.value})} 
                     >
                       <option value="">Select Program</option>
                       <option value="BIT">BIT</option>
                       <option value="BBA">BBA</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label>Year</label>
-                    <select 
-                      className="form-select"
-                      value={editForm.year} 
-                      onChange={e => setEditForm({...editForm, year: e.target.value})}
-                      disabled={!editForm.program}
-                    >
-                      <option value="">Select Year</option>
-                      {editForm.program === "BIT" && (
-                        <>
-                          <option value="1">Year 1</option>
-                          <option value="2">Year 2</option>
-                          <option value="3">Year 3</option>
-                        </>
-                      )}
-                      {editForm.program === "BBA" && (
-                        <>
-                          <option value="1">Year 1</option>
-                          <option value="2">Year 2</option>
-                          <option value="3">Year 3</option>
-                          <option value="3.5">Year 3.5</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Section</label>
-                    <input 
-                      value={editForm.section} 
-                      onChange={e => setEditForm({...editForm, section: e.target.value})} 
-                    />
-                  </div>
+                  
+                  {profile.role === 'TEACHER' ? (
+                    <>
+                      <div className="form-group">
+                        <label>Teaching Subject</label>
+                        <input 
+                          value={editForm.subject} 
+                          placeholder="e.g., Database Systems"
+                          onChange={e => setEditForm({...editForm, subject: e.target.value})} 
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Specialty</label>
+                        <input 
+                          value={editForm.specialty} 
+                          placeholder="e.g., Software Engineering"
+                          onChange={e => setEditForm({...editForm, specialty: e.target.value})} 
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="form-group">
+                        <label>Year</label>
+                        <select 
+                          className="form-select"
+                          value={editForm.year} 
+                          onChange={e => setEditForm({...editForm, year: e.target.value})}
+                          disabled={!editForm.program}
+                        >
+                          <option value="">Select Year</option>
+                          {editForm.program === "BIT" && (
+                            <>
+                              <option value="1">Year 1</option>
+                              <option value="2">Year 2</option>
+                              <option value="3">Year 3</option>
+                            </>
+                          )}
+                          {editForm.program === "BBA" && (
+                            <>
+                              <option value="1">Year 1</option>
+                              <option value="2">Year 2</option>
+                              <option value="3">Year 3</option>
+                              <option value="3.5">Year 3.5</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label>Section</label>
+                        <input 
+                          value={editForm.section} 
+                          placeholder="e.g., C1"
+                          onChange={e => setEditForm({...editForm, section: e.target.value})} 
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="modal-actions">

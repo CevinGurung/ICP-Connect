@@ -30,7 +30,20 @@ const PeopleListModal = ({ isOpen, onClose, title, data, loading, onToggleFollow
                   </div>
                   <div className="person-meta">
                     <span className="person-name">{user.fullName}</span>
-                    <span className="person-username">@{user.userName}</span>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span className="person-username">@{user.userName}</span>
+                      {user.role === 'TEACHER' && (
+                        <span style={{ 
+                          fontSize: '10px', 
+                          background: 'rgba(63, 185, 80, 0.1)', 
+                          color: 'var(--success)', 
+                          padding: '1px 6px', 
+                          borderRadius: '4px',
+                          fontWeight: '600',
+                          textTransform: 'uppercase'
+                        }}>Faculty</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {!user.isOwnProfile && (
