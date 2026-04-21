@@ -4,6 +4,7 @@ import com.icpconnect.backend.dto.LikedUserDTO;
 import com.icpconnect.backend.entity.*;
 import com.icpconnect.backend.repository.PostLikeRepository;
 import com.icpconnect.backend.repository.PostMediaRepository;
+import com.icpconnect.backend.repository.PostReportRepository;
 import com.icpconnect.backend.repository.PostRepository;
 import com.icpconnect.backend.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
@@ -26,6 +27,7 @@ public class PostService {
     private final PostMediaRepository postMediaRepository;
     private final UserRepository userRepository;
     private final PostLikeRepository postLikeRepository;
+    private final PostReportRepository postReportRepository;
     private final NotificationService notificationService;
     private final Path root = Paths.get("uploads/posts");
 
@@ -33,11 +35,13 @@ public class PostService {
                        PostMediaRepository postMediaRepository, 
                        UserRepository userRepository,
                        PostLikeRepository postLikeRepository,
+                       PostReportRepository postReportRepository,
                        NotificationService notificationService) {
         this.postRepository = postRepository;
         this.postMediaRepository = postMediaRepository;
         this.userRepository = userRepository;
         this.postLikeRepository = postLikeRepository;
+        this.postReportRepository = postReportRepository;
         this.notificationService = notificationService;
     }
 
@@ -151,9 +155,22 @@ public class PostService {
     }
 
     @Transactional
-    public void softDeletePost(Long postId) {
+    public void softDeletePost(Long postId, User principalUser) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+
+        // Fetch fresh user from DB to ensure latest role (e.g. if updated via DB manually)
+        User currentUser = userRepository.findById(principalUser.getId())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // Teachers can delete any post; students can only delete their own
+        boolean isOwner = post.getUser().getId().equals(currentUser.getId());
+        boolean isTeacher = currentUser.getRole() == Role.TEACHER;
+
+        if (!isOwner && !isTeacher) {
+            throw new IllegalArgumentException("You are not authorized to delete this post. Role found: " + currentUser.getRole());
+        }
+
         post.setDeleted(true);
         postRepository.save(post);
     }
@@ -216,5 +233,27 @@ public class PostService {
         } catch (Exception e) {
             throw new RuntimeException("Could not store the file. Error: " + e.getMessage());
         }
+    }
+
+    @Transactional
+    public void reportPost(Long postId, User reporter, String reason) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+
+        // Prevent duplicate reports
+        if (postReportRepository.existsByReporterIdAndPostId(reporter.getId(), postId)) {
+            throw new IllegalArgumentException("You have already reported this post");
+        }
+
+        // Prevent self-report
+        if (post.getUser().getId().equals(reporter.getId())) {
+            throw new IllegalArgumentException("You cannot report your own post");
+        }
+
+        PostReport report = new PostReport();
+        report.setReporter(reporter);
+        report.setPost(post);
+        report.setReason(reason);
+        postReportRepository.save(report);
     }
 }

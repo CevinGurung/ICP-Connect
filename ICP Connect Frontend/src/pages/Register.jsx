@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register as registerApi, sendOtp } from "../services/authService.js";
 import { setTokens } from "../auth/auth.js";
 import { useNotification } from "../App.jsx";
+import { GraduationCap, BookOpen } from "lucide-react";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -15,6 +16,8 @@ export default function Register() {
     program: "BIT",
     year: "1",
     section: "",
+    subject: "",
+    specialty: "",
     otp: "",
   });
 
@@ -39,6 +42,22 @@ export default function Register() {
     return email.endsWith("@icp.edu.np");
   };
 
+  // Auto-detect role from email pattern
+  // Student emails have intake code: name.a23@icp.edu.np, name2.s23@icp.edu.np
+  // Teacher emails do NOT have intake code: sandeep.gurung@icp.edu.np
+  const isTeacher = useMemo(() => {
+    const email = form.email.trim().toLowerCase();
+    if (!email.endsWith("@icp.edu.np")) return false;
+    const localPart = email.split("@")[0];
+    // Student pattern: ends with .[as]NN (e.g., .a23, .s24)
+    return !localPart.match(/\.[as]\d{2}$/);
+  }, [form.email]);
+
+  const detectedRole = useMemo(() => {
+    if (!form.email.trim().endsWith("@icp.edu.np")) return null;
+    return isTeacher ? "TEACHER" : "STUDENT";
+  }, [form.email, isTeacher]);
+
   const handleRequestOtp = async (e) => {
     if (e) e.preventDefault();
     
@@ -50,6 +69,11 @@ export default function Register() {
 
     if (form.password.length < 8) {
       showToast("error", "Password must be at least 8 characters");
+      return;
+    }
+
+    if (isTeacher && !form.subject.trim()) {
+      showToast("error", "Please enter the subject you teach");
       return;
     }
 
@@ -131,62 +155,150 @@ export default function Register() {
                 />
               </label>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
-                <label className="field">
-                  <span>Program</span>
-                  <select name="program" value={form.program} onChange={onChange} className="field-select">
-                    <option value="BIT">BIT</option>
-                    <option value="BBA">BBA</option>
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Year</span>
-                  <select name="year" value={form.year} onChange={onChange} className="field-select">
-                    <option value="1">1st Year</option>
-                    <option value="2">2nd Year</option>
-                    <option value="3">3rd Year</option>
-                  </select>
-                </label>
-              </div>
+              {/* Role detection badge */}
+              {detectedRole && (
+                <div className={`role-badge ${detectedRole.toLowerCase()}`}>
+                  {detectedRole === 'TEACHER' ? (
+                    <><BookOpen size={16} /> Detected as <strong>Teacher</strong></>
+                  ) : (
+                    <><GraduationCap size={16} /> Detected as <strong>Student</strong></>
+                  )}
+                </div>
+              )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
-                <label className="field">
-                  <span>Section</span>
-                  <input
-                    name="section"
-                    value={form.section}
-                    onChange={onChange}
-                    placeholder="e.g. C1, C2, C3"
-                    required
-                  />
-                </label>
-                <label className="field">
-                  <span>Password</span>
-                  <div className="password-wrap">
+              {/* Student fields */}
+              {(!detectedRole || detectedRole === 'STUDENT') && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
+                  <label className="field">
+                    <span>Program</span>
+                    <select name="program" value={form.program} onChange={onChange} className="field-select">
+                      <option value="BIT">BIT</option>
+                      <option value="BBA">BBA</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Year</span>
+                    <select name="year" value={form.year} onChange={onChange} className="field-select">
+                      <option value="1">1st Year</option>
+                      <option value="2">2nd Year</option>
+                      <option value="3">3rd Year</option>
+                    </select>
+                  </label>
+                </div>
+              )}
+
+              {(!detectedRole || detectedRole === 'STUDENT') && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
+                  <label className="field">
+                    <span>Section</span>
                     <input
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      value={form.password}
+                      name="section"
+                      value={form.section}
                       onChange={onChange}
-                      placeholder="••••••••"
-                      minLength={8}
+                      placeholder="e.g. C1, C2, C3"
                       required
                     />
-                    <button 
-                      type="button" 
-                      className="toggle-pass" 
-                      onClick={() => setShowPassword(!showPassword)}
-                      title={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                      ) : (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                      )}
-                    </button>
+                  </label>
+                  <label className="field">
+                    <span>Password</span>
+                    <div className="password-wrap">
+                      <input
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        value={form.password}
+                        onChange={onChange}
+                        placeholder="••••••••"
+                        minLength={8}
+                        required
+                      />
+                      <button 
+                        type="button" 
+                        className="toggle-pass" 
+                        onClick={() => setShowPassword(!showPassword)}
+                        title={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        )}
+                      </button>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              {/* Teacher fields */}
+              {detectedRole === 'TEACHER' && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
+                    <label className="field">
+                      <span>Program</span>
+                      <select name="program" value={form.program} onChange={onChange} className="field-select">
+                        <option value="BIT">BIT</option>
+                        <option value="BBA">BBA</option>
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>Teaching Year</span>
+                      <select name="year" value={form.year} onChange={onChange} className="field-select">
+                        <option value="1">1st Year</option>
+                        <option value="2">2nd Year</option>
+                        <option value="3">3rd Year</option>
+                      </select>
+                    </label>
                   </div>
-                </label>
-              </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '16px' }}>
+                    <label className="field">
+                      <span>Subject</span>
+                      <input
+                        name="subject"
+                        value={form.subject}
+                        onChange={onChange}
+                        placeholder="e.g. Database Systems"
+                        required
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Specialty</span>
+                      <input
+                        name="specialty"
+                        value={form.specialty}
+                        onChange={onChange}
+                        placeholder="e.g. Software Engineering"
+                      />
+                    </label>
+                  </div>
+
+                  <label className="field">
+                    <span>Password</span>
+                    <div className="password-wrap">
+                      <input
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        value={form.password}
+                        onChange={onChange}
+                        placeholder="••••••••"
+                        minLength={8}
+                        required
+                      />
+                      <button 
+                        type="button" 
+                        className="toggle-pass" 
+                        onClick={() => setShowPassword(!showPassword)}
+                        title={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                        ) : (
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        )}
+                      </button>
+                    </div>
+                  </label>
+                </>
+              )}
 
               <button className="btn btn-primary" disabled={loading} type="submit" style={{ marginTop: '12px' }}>
                 {loading ? "Sending OTP..." : "Get Verification Code"}
@@ -243,6 +355,36 @@ export default function Register() {
           </p>
         </div>
       </div>
+
+      <style>{`
+        .role-badge {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 16px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 500;
+          animation: fadeIn 0.3s ease;
+        }
+        .role-badge.teacher {
+          background: rgba(210, 153, 34, 0.1);
+          border: 1px solid rgba(210, 153, 34, 0.3);
+          color: #d29922;
+        }
+        .role-badge.student {
+          background: rgba(88, 166, 255, 0.08);
+          border: 1px solid rgba(88, 166, 255, 0.2);
+          color: var(--primary);
+        }
+        .role-badge strong {
+          font-weight: 700;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </section>
   );
 }

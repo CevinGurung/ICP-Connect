@@ -91,8 +91,16 @@ public class PostController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePost(@PathVariable Long id, @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
-        // Ownership check inside service
-        postService.softDeletePost(id);
+        postService.softDeletePost(id, principal.getUser());
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/report")
+    public ResponseEntity<java.util.Map<String, String>> reportPost(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "Inappropriate content") String reason,
+            @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
+        postService.reportPost(id, principal.getUser(), reason);
+        return ResponseEntity.ok(java.util.Map.of("message", "Post reported successfully"));
     }
 }

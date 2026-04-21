@@ -21,7 +21,8 @@ import {
   Target,
   Award,
   Users,
-  Heart
+  Heart,
+  Flag
 } from "lucide-react";
 import { useNotification } from "../App.jsx";
 import DonationModal from "../components/DonationModal.jsx";
@@ -37,6 +38,7 @@ import {
 } from "../services/userService.js";
 import PeopleListModal from "../components/PeopleListModal";
 import FollowButton from "../components/FollowButton";
+import ReportModal from "../components/ReportModal";
 
 export default function Home() {
   const { showToast } = useNotification();
@@ -70,7 +72,9 @@ export default function Home() {
   const [likesListHasMore, setLikesListHasMore] = useState(false);
   const [likesListLoading, setLikesListLoading] = useState(false);
   const [likesListPostId, setLikesListPostId] = useState(null);
-
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportingPost, setReportingPost] = useState(null);
+  
   // Comment States
   const [comments, setComments] = useState([]);
   const [commentPage, setCommentPage] = useState(0);
@@ -672,6 +676,25 @@ export default function Home() {
     setActiveDropdownId(activeDropdownId === postId ? null : postId);
   };
 
+  const handleReportPost = (e, post) => {
+    e.stopPropagation();
+    setActiveDropdownId(null);
+    setReportingPost(post);
+    setIsReportModalOpen(true);
+  };
+
+  const submitReport = async (fullReason) => {
+    if (!reportingPost) return;
+    try {
+      await postService.reportPost(reportingPost.id, fullReason);
+      showToast("success", "Post reported successfully.");
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.response?.data?.error || "Failed to report post";
+      showToast("error", msg);
+      throw err; // Re-throw to let modal know it failed
+    }
+  };
+
   // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = () => setActiveDropdownId(null);
@@ -949,7 +972,7 @@ export default function Home() {
                       
                       {activeDropdownId === post.id && (
                         <div className="dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                          {isOwner ? (
+                          {isOwner && (
                             <>
                               <button className="dropdown-item" onClick={(e) => openEditModal(e, post)}>
                                 <Edit size={16} /> Edit Post
@@ -958,9 +981,15 @@ export default function Home() {
                                 <Trash2 size={16} /> Delete Post
                               </button>
                             </>
-                          ) : (
-                            <button className="dropdown-item" onClick={() => showToast("info", "Reporting feature coming soon")}>
-                              Report Post
+                          )}
+                          {!isOwner && currentUser?.role === 'TEACHER' && (
+                            <button className="dropdown-item delete" onClick={(e) => openDeleteConfirm(e, post)}>
+                              <Trash2 size={16} /> Remove Post
+                            </button>
+                          )}
+                          {!isOwner && (
+                            <button className="dropdown-item" onClick={(e) => handleReportPost(e, post)}>
+                              <Flag size={16} /> Report Post
                             </button>
                           )}
                         </div>
@@ -1133,6 +1162,15 @@ export default function Home() {
       <DonationModal 
         isOpen={isDonationModalOpen} 
         onClose={() => setIsDonationModalOpen(false)} 
+      />
+
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => {
+          setIsReportModalOpen(false);
+          setReportingPost(null);
+        }}
+        onReport={submitReport}
       />
 
       <style>{`

@@ -16,14 +16,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleIllegalArgumentException(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("error", ex.getMessage()));
+                .body(Map.of("message", ex.getMessage()));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, String>> handleJsonError(HttpMessageNotReadableException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("error", "Invalid request format: " + ex.getMostSpecificCause().getMessage()));
+                .body(Map.of("message", "Invalid request format: " + ex.getMostSpecificCause().getMessage()));
     }
 
     @ExceptionHandler(Exception.class)
@@ -31,9 +31,8 @@ public class GlobalExceptionHandler {
         // Log the actual exception for debugging
         ex.printStackTrace();
         
-        // Return JSON error even if content type was preset (e.g. video/mp4)
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("error", "An unexpected error occurred. " + ex.getMessage()));
+                .body(Map.of("message", "An unexpected error occurred. " + ex.getMessage()));
     }
 }

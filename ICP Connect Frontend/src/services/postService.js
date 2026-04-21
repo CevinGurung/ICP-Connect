@@ -68,6 +68,13 @@ export const sharePost = async (postId) => {
   return response.data;
 };
 
+export const reportPost = async (postId, reason = "Inappropriate content") => {
+  const response = await api.post(`/api/posts/${postId}/report`, null, {
+    params: { reason }
+  });
+  return response.data;
+};
+
 const postService = {
   createPost,
   getFeed,
@@ -80,7 +87,8 @@ const postService = {
   addComment,
   updateComment,
   deleteComment,
-  sharePost
+  sharePost,
+  reportPost
 };
 
 export default postService;

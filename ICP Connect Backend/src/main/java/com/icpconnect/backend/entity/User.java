@@ -48,6 +48,12 @@ public class User {
     @Column(columnDefinition = "TEXT")
     private String bio;
 
+    @Column(length = 100)
+    private String subject;
+
+    @Column(length = 200)
+    private String specialty;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role = Role.STUDENT;

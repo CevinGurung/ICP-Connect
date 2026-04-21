@@ -62,6 +62,14 @@ public class AuthService {
             throw new IllegalArgumentException("Email already registered");
         }
 
+        // Auto-detect role from email pattern
+        // Student emails have intake code: name.a23@icp.edu.np or name2.s23@icp.edu.np
+        // Teacher emails have NO intake code: name.surname@icp.edu.np
+        String localPart = request.email().split("@")[0];
+        boolean isTeacher = !localPart.matches(".*\\.[as]\\d{2}$");
+
+        Role role = isTeacher ? Role.TEACHER : Role.STUDENT;
+
         User user = new User();
         user.setFullName(request.fullName());
         user.setUserName(request.userName());
@@ -70,8 +78,13 @@ public class AuthService {
         user.setProgram(request.program());
         user.setYear(request.year());
         user.setSection(request.section());
-        user.setRole(Role.STUDENT);
+        user.setRole(role);
         user.setActive(true);
+
+        if (isTeacher) {
+            user.setSubject(request.subject());
+            user.setSpecialty(request.specialty());
+        }
 
         User saved = userRepository.save(user);
 
