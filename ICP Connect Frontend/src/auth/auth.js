@@ -1,6 +1,8 @@
 const ACCESS_KEY = "icp_access_token";
 const REFRESH_KEY = "icp_refresh_token";
 
+// LEARNING NOTE: This stores our 'Visitor Pass' (Access Token) and 
+// 'Subscription' (Refresh Token) in the browser's persistent memory (LocalStorage).
 export function setTokens(accessToken, refreshToken) {
   localStorage.setItem(ACCESS_KEY, accessToken);
   localStorage.setItem(REFRESH_KEY, refreshToken);
@@ -19,10 +21,15 @@ export function getRefreshToken() {
   return localStorage.getItem(REFRESH_KEY);
 }
 
+// LEARNING NOTE: A simple check. If we have an Access Token, we assume the user is logged in.
+// If the token is actually expired, the Backend will let us know later (401 error).
 export function isLoggedIn() {
   return Boolean(getAccessToken());
 }
 
+// LEARNING NOTE: JWT tokens are just base64-encoded strings. 
+// This function 'decodes' the middle part of the token so we can read the 
+// user's Name, Email, and Role directly on the Frontend.
 export function parseJwt(token) {
   try {
     const base64Url = token.split('.')[1];

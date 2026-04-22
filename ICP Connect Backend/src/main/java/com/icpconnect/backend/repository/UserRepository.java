@@ -11,8 +11,14 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
+// LEARNING NOTE: An 'Interface' doesn't have the code inside it. 
+// However, by extending 'JpaRepository', Spring Boot MAGICALLY creates all the SQL code for us!
+// We can find, save, and delete users without writing a single line of SQL.
 public interface UserRepository extends JpaRepository<User, Long> {
 
+    // LEARNING NOTE: Spring looks at the method names. 
+    // 'findByEmail' tells Spring: "Select * from users where email = ?"
+    // 'existsByEmail' tells Spring: "Select count(*) from users where email = ?"
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
@@ -24,6 +30,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByProgramAndIdNot(String program, Long id);
 
     // Tier 3: Random fallback
+    // LEARNING NOTE: Sometimes method names aren't enough.
+    // In those cases, we use @Query to write custom SQL. 'nativeQuery = true' means we are using 
+    // raw SQL that the specific database (like PostgreSQL) understands.
     @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM users u WHERE u.id != ?1 ORDER BY RANDOM() LIMIT ?2", nativeQuery = true)
     List<User> findRandomUsers(Long excludeId, int limit);
 

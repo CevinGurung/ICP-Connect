@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+// LEARNING NOTE: PostService is the 'Social Feed Manager'. 
+// It handles everything from uploading pictures and videos to calculating likes and handling 'Red Flags' (Reports).
 public class PostService {
 
     private final PostRepository postRepository;
@@ -55,6 +57,8 @@ public class PostService {
     }
 
     @Transactional
+    // LEARNING NOTE: This method saves a new post and its media (images/videos).
+    // It checks if you're trying to mix videos with images, which we don't allow for layout reasons!
     public Post createPost(Long userId, String content, MultipartFile[] files) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -93,6 +97,8 @@ public class PostService {
         return savedPost;
     }
 
+    // LEARNING NOTE: This pulls the latest posts for the Home feed.
+    // It only shows 'Active' posts from users who haven't been deactivated or banned.
     public List<Post> getFeed(Long currentUserId) {
         List<Post> posts = postRepository.findAllActivePosts();
         if (currentUserId != null) {
@@ -124,6 +130,9 @@ public class PostService {
     }
 
     @Transactional
+    // LEARNING NOTE: 'Like' logic is like a light switch. 
+    // If you like it, it adds 1. If you unlike it, it subtracts 1.
+    // We also notify the post owner so they know they are getting popular!
     public Post toggleLike(Long postId, Long userId) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
@@ -155,6 +164,8 @@ public class PostService {
     }
 
     @Transactional
+    // LEARNING NOTE: We use 'Soft Delete', which means we don't actually erase the post from the DB.
+    // We just mark it as 'isDeleted = true'. This is safer in case we need to recover it later.
     public void softDeletePost(Long postId, User principalUser) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
@@ -236,6 +247,8 @@ public class PostService {
     }
 
     @Transactional
+    // LEARNING NOTE: Reporting allows the community to moderate itself.
+    // If a post is inappropriate, users can report it for an Admin to review.
     public void reportPost(Long postId, User reporter, String reason) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));

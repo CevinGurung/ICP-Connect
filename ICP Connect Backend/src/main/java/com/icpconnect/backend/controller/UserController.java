@@ -8,6 +8,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+// LEARNING NOTE: UserController is the 'Front Door' for all user-related requests.
+// It handles requests for profiles, following, and recommendations.
 @RequestMapping("/api/users")
 public class UserController {
 
@@ -18,6 +20,9 @@ public class UserController {
     }
 
     @GetMapping("/{id}/profile")
+    // LEARNING NOTE: This gets the public profile of any user. 
+    // We use @AuthenticationPrincipal to know WHO is asking, so we can tell them 
+    // if THEY are already following this user.
     public ResponseEntity<UserProfileDTO> getUserProfile(
             @PathVariable Long id,
             @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
@@ -26,6 +31,7 @@ public class UserController {
     }
 
     @PostMapping("/{id}/follow")
+    // LEARNING NOTE: This allows the logged-in user to follow or unfollow someone.
     public ResponseEntity<java.util.Map<String, Boolean>> toggleFollow(
             @PathVariable Long id,
             @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
@@ -64,6 +70,8 @@ public class UserController {
     }
 
     @GetMapping("/recommendations")
+    // LEARNING NOTE: This endpoint provides a list of suggested people to follow,
+    // like the 'People you may know' section on other social networks.
     public ResponseEntity<java.util.List<com.icpconnect.backend.dto.UserSummaryDTO>> getRecommendations(
             @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal,
             @RequestParam(defaultValue = "0") int page,
@@ -72,6 +80,7 @@ public class UserController {
     }
 
     @GetMapping("/connections")
+    // LEARNING NOTE: This specifically finds your 'Mutual' connections (you both follow each other).
     public ResponseEntity<java.util.List<com.icpconnect.backend.dto.UserSummaryDTO>> getMutualConnections(
             @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
         return ResponseEntity.ok(userService.getMutualConnections(principal.getUser()));

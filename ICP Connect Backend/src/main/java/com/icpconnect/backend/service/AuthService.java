@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 
 @Service
+// LEARNING NOTE: The @Service annotation tells Spring that this class contains the 
+// 'Main Logic' for our app. It's the brain that decides what happens when someone registers or logs in.
 public class AuthService {
 
     private final UserRepository userRepository;
@@ -45,7 +47,8 @@ public class AuthService {
     }
 
     /* ===================== REGISTER ===================== */
-
+    // LEARNING NOTE: This method takes the user's input (Name, Email, Password) and 
+    // creates a permanent record in our database.
     public AuthResponse register(RegisterRequest request) {
         String normalizedEmail = request.email().trim().toLowerCase();
         // Validate OTP using Cache
@@ -64,6 +67,8 @@ public class AuthService {
         }
 
         // Auto-detect role from email pattern
+        // LEARNING NOTE: In a college system, we can often tell if someone is a student or teacher 
+        // by their email format. Here we use a 'Regex' (Regular Expression) to check.
         String localPart = normalizedEmail.split("@")[0];
         boolean isTeacher = !localPart.matches(".*\\.[as]\\d{2}$");
 
@@ -73,6 +78,7 @@ public class AuthService {
         user.setFullName(request.fullName());
         user.setUserName(request.userName());
         user.setEmail(normalizedEmail);
+        // LEARNING NOTE: CRITICAL! We never save the real password. We 'encode' it (scramble it) first.
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setProgram(request.program());
         user.setYear(request.year());
@@ -97,7 +103,10 @@ public class AuthService {
     }
 
     /* ===================== LOGIN ===================== */
-
+    // LEARNING NOTE: Login is like a challenge. We ask: 
+    // 1. Does the email exist?
+    // 2. Does the password match the scrambled one in the DB?
+    // 3. Did they enter the correct OTP code sent to their email?
     public AuthResponse login(AuthRequest request) {
         String normalizedEmail = request.email().trim().toLowerCase();
         User user = userRepository.findByEmail(normalizedEmail)
@@ -129,7 +138,9 @@ public class AuthService {
     }
 
     /* ===================== REFRESH ===================== */
-
+    // LEARNING NOTE: Access Tokens expire quickly for security. Instead of making the user 
+    // login again every 15 minutes, the Frontend uses a 'Refresh Token' to get a new Access Token.
+    // This is 'Quietly' done in the background so the user stays logged in smoothly.
     public AuthResponse refresh(RefreshRequest request) {
         String rawRefresh = request.refreshToken();
 
@@ -182,7 +193,8 @@ public class AuthService {
     }
 
     /* ===================== HELPERS ===================== */
-
+    // LEARNING NOTE: We save the refresh tokens in the database. 
+    // Why? So we can 'Revoke' (cancel) them if a user logs out or if their account is stolen.
     private void storeRefreshToken(User user, String rawRefreshToken) {
         String tokenHash = tokenHashUtil.sha256Base64(rawRefreshToken);
 

@@ -1,10 +1,15 @@
 import axios from "axios";
 import { getAccessToken, clearTokens, getRefreshToken, setTokens } from "../auth/auth.js";
 
+// LEARNING NOTE: 'api' is our specialized Axios client. 
+// It is the 'Messenger' that takes data to and from our Backend server.
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 
+// LEARNING NOTE: This 'Request Interceptor' acts like a 'Stamp'. 
+// It automatically adds our 'Bearer Token' to the header of every single request 
+// so the Backend knows who we are. We don't have to do it manually every time!
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -23,7 +28,12 @@ const onTokenRefreshed = (accessToken) => {
   refreshSubscribers = [];
 };
 
-// Response interceptor to handle unauthorized access and refresh tokens
+// LEARNING NOTE: This 'Response Interceptor' is our 'Safety Net'. 
+// If a request fails because our Access Token expired (401 error), 
+// this code will automatically:
+// 1. Ask the Backend for a new Access Token using our Refresh Token.
+// 2. Update our tokens in LocalStorage.
+// 3. RETRY the original request so the user never even sees an error!
 api.interceptors.response.use(
   (response) => response,
   async (error) => {

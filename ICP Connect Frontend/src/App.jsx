@@ -27,10 +27,15 @@ const AdminDonations = lazy(() => import("./admin/AdminDonations.jsx"));
 const AdminActivity = lazy(() => import("./admin/AdminActivity.jsx"));
 const AdminAnalytics = lazy(() => import("./admin/AdminAnalytics.jsx"));
 
+// LEARNING NOTE: 'App.jsx' is the entry point of our website. 
+// It sets up the Routing (which page to show for which URL) and 
+// global systems like 'Toast' notifications.
 export default function App() {
   const [toasts, setToasts] = useState([]);
 
   const showToast = useCallback((type, message) => {
+    // LEARNING NOTE: A 'Toast' is a small popup message that tells the user 
+    // if something succeeded or failed. We use 'useCallback' to keep this function stable.
     setToasts((prev) => {
       // Prevent multiple popoffs of same message/type if already visible
       const isDuplicate = prev.some(t => t.type === type && t.message === message);
@@ -42,6 +47,8 @@ export default function App() {
   }, []);
 
   const removeToast = useCallback((id) => {
+    // LEARNING NOTE: This function removes a specific toast from the list 
+    // once the user closes it or the timer expires.
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
@@ -52,13 +59,16 @@ export default function App() {
       <Router>
         <ToastContainer toasts={toasts} removeToast={removeToast} />
         
+        {/* LEARNING NOTE: Suspense shows a loading screen while the big parts of our app (like Admin pages) 
+            are being downloaded from the server. This makes the initial website load feel fast! */}
         <Suspense fallback={
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
             <div className="spinner"></div>
           </div>
         }>
           <Routes>
-            {/* ADMIN ROUTES (Isolated Layout) */}
+            {/* LEARNING NOTE: ProtectedRoute and AdminRoute are 'Guards'. 
+                If you aren't an Admin, you can't enter the /admin area! */}
             <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
               <Route index element={<AdminDashboard />} />
               <Route path="users" element={<AdminUsers />} />

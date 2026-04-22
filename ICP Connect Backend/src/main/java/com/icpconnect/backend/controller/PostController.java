@@ -14,6 +14,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
+// LEARNING NOTE: PostController handles everything you see on the 'Home Feed'. 
+// It is the middleman between the User's screen and our Post database.
 @RequestMapping("/api/posts")
 public class PostController {
 
@@ -24,6 +26,8 @@ public class PostController {
     }
 
     @PostMapping("/create")
+    // LEARNING NOTE: This is how a user shares a new post. 
+    // It accepts text (content) and optional files (images or video).
     public ResponseEntity<Post> createPost(
             @RequestParam("content") String content,
             @RequestParam(value = "files", required = false) MultipartFile[] files,
@@ -33,6 +37,7 @@ public class PostController {
         return ResponseEntity.ok(post);
     }
     @GetMapping("/feed")
+    // LEARNING NOTE: This is called by the Frontend to load the main scrolling feed.
     public ResponseEntity<List<Post>> getFeed(@AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
         Long userId = (principal != null) ? principal.getUser().getId() : null;
         List<Post> feed = postService.getFeed(userId);
@@ -55,6 +60,7 @@ public class PostController {
     }
 
     @PostMapping("/{id}/like")
+    // LEARNING NOTE: This handles the 'Heart' or 'Like' button on a post.
     public ResponseEntity<Post> toggleLike(@PathVariable Long id, @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
         Post post = postService.toggleLike(id, principal.getUser().getId());
         return ResponseEntity.ok(post);
@@ -90,6 +96,7 @@ public class PostController {
     }
 
     @DeleteMapping("/{id}")
+    // LEARNING NOTE: This handles deleting your own post (or an Admin deleting an inappropriate one).
     public ResponseEntity<Void> deletePost(@PathVariable Long id, @AuthenticationPrincipal com.icpconnect.backend.security.SecurityUser principal) {
         postService.softDeletePost(id, principal.getUser());
         return ResponseEntity.noContent().build();

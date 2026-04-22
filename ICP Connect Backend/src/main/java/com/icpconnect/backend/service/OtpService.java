@@ -12,6 +12,8 @@ import java.util.concurrent.TimeUnit;
 public class OtpService {
 
     // Internal Memory Cache configured with absolute 5 minute time-to-live rule
+    // LEARNING NOTE: We use a 'Cache' here to remember the OTP code for 5 minutes. 
+    // It's much faster than saving it to a database because it stays in the server's RAM!
     private final Cache<String, OtpDetails> otpCache = Caffeine.newBuilder()
             .expireAfterWrite(5, TimeUnit.MINUTES)
             .maximumSize(10000)
@@ -23,6 +25,7 @@ public class OtpService {
         this.emailService = emailService;
     }
 
+    // LEARNING NOTE: Step 1 - Generate a random 6-digit number and send it to the email.
     public void generateAndSendOtp(String email, String purpose) {
         // Normalize email to prevent case-sensitive cache misses
         String normalizedEmail = email.trim().toLowerCase();
@@ -31,6 +34,8 @@ public class OtpService {
 
         if (existing != null) {
             long secondsSinceLast = java.time.Duration.between(existing.getLastSentAt(), LocalDateTime.now()).getSeconds();
+            // LEARNING NOTE: This is a 'Wait Timer' to prevent people from spamming our 
+            // email server. You have to wait at least 30 seconds before asking for another code.
             if (secondsSinceLast < 30) {
                 throw new IllegalArgumentException("Too soon! Please wait another " + (30 - secondsSinceLast) + "s before requesting a new OTP.");
             }
@@ -45,6 +50,8 @@ public class OtpService {
         emailService.sendOtpEmail(normalizedEmail, newOtp, purpose);
     }
 
+    // LEARNING NOTE: Step 2 - Check if the user entered the EXACT same number we sent.
+    // If they fail 3 times, we delete the code so they can't keep guessing!
     public void validateOtp(String email, String inputOtp) {
         // Normalize email and trim input OTP to be resilient against casing and whitespace
         String normalizedEmail = email.trim().toLowerCase();

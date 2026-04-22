@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+// LEARNING NOTE: UserService is responsible for everything related to 'Users' and 'Profiles'.
+// It handles following/unfollowing, updating profile pictures, and suggesting new people to follow.
 public class UserService {
 
     private final UserRepository userRepository;
@@ -36,6 +38,8 @@ public class UserService {
         }
     }
 
+    // LEARNING NOTE: This method gathers all the info needed to show a user's profile page.
+    // It calculates post counts and follower counts so the Frontend doesn't have to.
     public UserProfileDTO getUserProfile(Long userId, User currentUser) {
         User targetUser = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -80,6 +84,8 @@ public class UserService {
     }
 
     @Transactional
+    // LEARNING NOTE: 'Toggle' means if you follow them, it will UNFOLLOW you. 
+    // If you don't follow them, it will FOLLOW you. It also sends a notification to the other person!
     public boolean toggleFollow(Long targetUserId, User currentUser) {
         if (currentUser.getId().equals(targetUserId)) {
             throw new IllegalArgumentException("You cannot follow yourself.");
@@ -128,6 +134,8 @@ public class UserService {
     }
 
     @Transactional
+    // LEARNING NOTE: This handles updating the user's Bio and Profile Picture.
+    // It carefully deletes the old picture from the server's hard drive to save space.
     public void updateProfile(User currentUser, String fullName, String bio, String program, String year, String section, org.springframework.web.multipart.MultipartFile profilePic, boolean removeProfilePic) {
         User user = userRepository.findById(currentUser.getId())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -177,6 +185,10 @@ public class UserService {
                 .toList();
     }
 
+    // LEARNING NOTE: This is our 'Recommendation Algorithm'. 
+    // Tier 1: It finds people in your same Program, Year, and Section.
+    // Tier 2: It finds people in just your same Program.
+    // Tier 3: It suggests some random active users to keep things fresh.
     public java.util.List<com.icpconnect.backend.dto.UserSummaryDTO> getRecommendedUsers(User currentUser, int page, int size) {
         if (currentUser == null) return java.util.Collections.emptyList();
 
@@ -251,6 +263,8 @@ public class UserService {
         );
     }
 
+    // LEARNING NOTE: Mutual connections are users where 'I follow them' AND 'They follow me'.
+    // Just like LinkedIn or Facebook 'Friends'.
     public java.util.List<com.icpconnect.backend.dto.UserSummaryDTO> getMutualConnections(User currentUser) {
         // Get users I follow
         java.util.List<Follow> myFollowing = followRepository.findByFollowerId(currentUser.getId());

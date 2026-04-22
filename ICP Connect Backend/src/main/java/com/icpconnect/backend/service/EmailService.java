@@ -7,6 +7,8 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 @Service
+// LEARNING NOTE: EmailService is our 'Post Office'. 
+// It handles creating and sending beautiful HTML emails to our users.
 public class EmailService {
     private final JavaMailSender javaMailSender;
 
@@ -14,6 +16,8 @@ public class EmailService {
         this.javaMailSender = javaMailSender;
     }
 
+    // LEARNING NOTE: This method sends the 6-digit OTP code in a styled email.
+    // It uses 'MimeMessage' to allow for rich HTML and CSS formatting.
     public void sendOtpEmail(String to, String otp, String purpose) {
         try {
             MimeMessage message = javaMailSender.createMimeMessage();
@@ -57,6 +61,8 @@ public class EmailService {
         }
     }
 
+    // LEARNING NOTE: This sends a 'Thank You' email when a user supports the platform with a donation.
+    // It's important for keeping the community engaged and showing gratitude.
     public void sendDonationThankYouEmail(String to, String donorName, String amount) {
         try {
             MimeMessage message = javaMailSender.createMimeMessage();

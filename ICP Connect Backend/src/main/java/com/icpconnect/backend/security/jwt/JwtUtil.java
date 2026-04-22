@@ -12,6 +12,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
+// LEARNING NOTE: JwtUtil is like a 'Key Maker' and 'ID Checker'. 
+// It handles creating the physical tokens and reading the information inside them.
 public class JwtUtil {
 
     private final String jwtSecret;
@@ -31,6 +33,8 @@ public class JwtUtil {
     }
 
     @PostConstruct
+    // LEARNING NOTE: @PostConstruct means this runs immediately after the app starts.
+    // We prepare our 'Signing Key' once so we can use it to sign every single token.
     public void init() {
         // HS256 requires at least 32 bytes secret. If shorter, JJWT throws an error.
         this.signingKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
@@ -38,6 +42,9 @@ public class JwtUtil {
 
     /* ===================== TOKEN GENERATION ===================== */
 
+    // LEARNING NOTE: This creates a 'Short-term' token (e.g., 15 mins).
+    // We include basic user info (Claims) so the Frontend doesn't have to call the database 
+    // just to know the user's name or role.
     public String generateAccessToken(User user) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + accessExpMs);
@@ -53,6 +60,9 @@ public class JwtUtil {
                 .compact();
     }
 
+    // LEARNING NOTE: This creates a 'Long-term' token (e.g., 7 days).
+    // It is used ONLY to get a new Access Token when the old one expires.
+    // If the Access Token is a 'Visitor Pass', the Refresh Token is a 'Subscription'.
     public String generateRefreshToken(User user) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + refreshExpMs);
@@ -68,6 +78,8 @@ public class JwtUtil {
 
     /* ===================== CLAIMS EXTRACTION ===================== */
 
+    // LEARNING NOTE: This 'unlocks' the token using our secret key to read the data inside.
+    // If the token was tampered with (even by 1 character), this will throw an error.
     public Claims extractClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(signingKey)
@@ -90,6 +102,8 @@ public class JwtUtil {
 
     /* ===================== VALIDATION ===================== */
 
+    // LEARNING NOTE: A token is valid only if its signature matches our secret key 
+    // AND the current time is before its 'Expiration' date.
     public boolean isTokenValid(String token) {
         try {
             extractClaims(token); // validates signature + expiration

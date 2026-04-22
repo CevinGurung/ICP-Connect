@@ -18,6 +18,8 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+// LEARNING NOTE: AdminService is the 'Control Center' of the entire platform. 
+// It allows Admins to see total stats, promote users, and remove inappropriate content.
 public class AdminService {
 
     private final UserRepository userRepository;
@@ -27,7 +29,8 @@ public class AdminService {
     private final CommentRepository commentRepository;
 
     // ─────────────── DASHBOARD ───────────────
-
+    // LEARNING NOTE: This method gathers 'Big Picture' numbers like how many users we have 
+    // and how many donations have been made today.
     public AdminDashboardDTO getDashboardStats() {
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
 
@@ -95,6 +98,8 @@ public class AdminService {
     }
 
     @Transactional
+    // LEARNING NOTE: Admins can 'Soft Delete' users.
+    // However, they are blocked from deleting themselves or other Admins for safety!
     public void softDeleteUser(Long targetId, User admin) {
         User target = userRepository.findById(targetId)
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -138,6 +143,8 @@ public class AdminService {
     }
 
     @Transactional
+    // LEARNING NOTE: When someone reports a post, it stays 'PENDING' until an Admin 
+    // reviews it and marks it as 'RESOLVED' or 'IGNORED' (if the report was a mistake).
     public void resolveReport(Long reportId, String action) {
         PostReport report = postReportRepository.findById(reportId)
             .orElseThrow(() -> new IllegalArgumentException("Report not found"));
@@ -219,7 +226,8 @@ public class AdminService {
     }
 
     // ─────────────── ANALYTICS ───────────────
-
+    // LEARNING NOTE: Analytics are the 'Charts and Graphs' data. 
+    // This helps the Admin see if the platform activity is growing or shrinking over time.
     public AdminAnalyticsDTO getAnalytics() {
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
 

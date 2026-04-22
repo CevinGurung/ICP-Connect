@@ -8,6 +8,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.LocalDateTime;
 
 @Entity
+// LEARNING NOTE: @Entity tells Hibernate that this Java class represents a Table in our Database.
+// Think of this as a blueprint for the 'User' data we store.
 @Table(name = "users")
 @Getter
 @Setter
@@ -18,6 +20,8 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    // LEARNING NOTE: @Id marks this field as the 'Primary Key'. 
+    // IDENTITY means the Database will automatically count up (1, 2, 3...) for each new user.
     private Long id;
 
     @Column(nullable = false, length = 100)
@@ -30,6 +34,8 @@ public class User {
     private String email;
 
     @JsonIgnore
+    // LEARNING NOTE: @JsonIgnore ensures the password hash is NEVER sent to the Frontend. 
+    // It's a critical safety measure to keep users' secrets stay on the server.
     @Column(nullable = false, length = 100)
     private String passwordHash;
 
